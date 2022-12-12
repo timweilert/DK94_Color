@@ -327,7 +327,8 @@ Finally some actually assembly code rather than high level compiler stuff.
 		ENDC
 	ENDM
 
-Creates an assembly macro called ld_long, presumably to load values longer than a typical register, 	
+Creates an assembly macro called ld_long. It looks at "\1", does a lowercase conversion via STRLWR and compares to lowercase "a". If that's true, then poke the byte value $FA in the current memory location 
+followed by a word poke of "\2". If it's not "a", check if \2 is "a" and if that one is we poke in $EA and \1. 
 
 	;1:function to call
 	switchcall: MACRO
