@@ -327,8 +327,9 @@ Finally some actually assembly code rather than high level compiler stuff.
 		ENDC
 	ENDM
 
-Creates an assembly macro called ld_long. It looks at "\1", does a lowercase conversion via STRLWR and compares to lowercase "a". If that's true, then poke the byte value $FA in the current memory location 
-followed by a word poke of "\2". If it's not "a", check if \2 is "a" and if that one is we poke in $EA and \1. 
+Creates an assembly macro called ld_long. It looks at "\1" (the first argument passed to the macro), does a lowercase conversion via STRLWR and compares to lowercase "a". If that's true, then poke the byte value $FA in the current memory location 
+followed by a word poke of "\2" (the second argument to the macro). If it's not "a", check if \2 (the second argument) is "a" and if that one is we poke in $EA followed by \1. The end result- a value comes in, presumably 2 words and if the first word is "a" then the current memory address becomes $FA and the second word passed to the macro. 
+Example- we pass in $41, $42- as shown above $41 is character A, so after the macro the value $FA42 is returned. 
 
 	;1:function to call
 	switchcall: MACRO
