@@ -98,7 +98,7 @@ From there we use the resulting comparison to set a flag (hGBC) to either 1 (on 
 
 # Intro Code
 
-In shinpokered the intro.asm file covers the introductory bits of code. This is the first time things are being drawn on screen. Prior to this a bunch of stuff has executed in init.asm. The first major call of interest is PlayShootingStar. 
+In shinpokered the intro.asm file covers the introductory bits of code, including the Init function that gets called via that last jp init in home.asm. This is the first time things are being drawn on screen. The first major call of interest is PlayShootingStar. 
 
 	PlayShootingStar:
 		ld b, SET_PAL_GAME_FREAK_INTRO
@@ -126,9 +126,9 @@ Let's call the palette command- I think we'll need to duplicate this in DK94. He
 		ret z
 		predef_jump _RunPaletteCommand
 
-Load register A with the value from the wOnSGB work RAM address (similar to our hGBC address flag perhaps?).
+Load register A with the value from the wOnSGB work RAM address. As we will see, this value will be $1 because of the reworking of the LoadSGB function to set the flag high, but not do a bunch of other SGB-related VRAM stuff.
 
-AND A with itself. At this point if shinpokered is on a SGB, then A should have value 1, so anding with itself gives us 1. If it's not then it'll result in 0. If the result of 'AND A' is zero, then return to where this case called, otherwise do predef_jump _RunPaletteCommand.
+AND A with itself. At this point if shinpokered is on a SGB or GBC, then A should have value 1, so anding with itself gives us 1. If it's not then it'll result in 0. If the result of 'AND A' is zero, then return to where this case called, otherwise do predef_jump _RunPaletteCommand.
 
 predef_jump is just a macro that wraps jumping to a specific spot in plain English rather than by address. In asm_macros.asm
 
@@ -359,7 +359,7 @@ Line by line:
 		ld [wOnSGB], a
 		call CheckSGB
 
-XOR'ing A clears that register out, making it 0, we then put a 0 in the work RAM wOnSGB address. Then we call CheckSGB. I'm not going to dive in to that code, since it basically looks like it's doing a bunch of checks, but it does start out doing a SendSGBPacket command. If it is on a SGB then the carry flag gets set.
+XOR'ing A clears that register out, making it 0, we then put a 0 in the work RAM wOnSGB address. Then we call CheckSGB. I'm not going to dive in to that code, since it basically looks like it's doing a bunch of checks, but it does start out doing a SendSGBPacket command. If it is on a SGB then the carry flag gets set. Also the DE register is set to
 
 	jr c, .onSGB
 
@@ -371,13 +371,18 @@ If we are on a SGB, then the carry flag condition is true, so we'd skip ahead to
 
 Here we see the hGBC value (I think for the first time in code execution?)- basically load reg A with the value from hGBC (recall 0 == not GBC, 1 == GBC). AND A with itself. If we get a zero as the result jump relative to .onDMG, otherwise continue. We will continue since the result of our AND A is not zero.
 
-#####PICK UP HERE
+	;if on gbc, set SGB flag but skip all the SGB vram stuff
+	ld a, $1
+	ld [wOnSGB], a
+
+Yay a code comment! As shown we use Reg A to set the wOnSGB value to $1. Following this we would presumably hit the ret instruction that comes next in the code and exit out of this subroutine. So the end result is that on GBC we now have values of $1 in both hGBC and wOnSGB.
+
 
 # Returning to PlayShootingStar
 
 We're only 2 lines in and if we're on a GBC presumably we have the following setup:
 
-- Reg A has the value of the [wOnSGB] flag
+- Reg A has the value of the [wOnSGB] flag (should be $1)
 - Reg B has the value of the SET_PAL_GAME_FREAK_INTRO ($0C)
 - Everything else is a bit irrelevent.
 
@@ -415,7 +420,7 @@ Finally something related to the GBC and now we can explore the mechanics of act
 
 # Where does hGBC get called?
 
-Doing a quick search of the shinpokered codebase I see that hGBC gets called in a few spots. This may be a little bit of an arbitrary way to approach things, but I'm going to just start working through each of the instances to see where it's getting called to better understand how it's done over there. Once that's done I can translate the concepts over here to DK94.
+When I started doing this walkthrough this is the point where I began, upon digging through more of the init code I decided to move this here. Doing a quick search of the shinpokered codebase I see that hGBC gets called in a few spots. This may be a little bit of an arbitrary way to approach things, but I'm going to just start working through each of the instances to see where it's getting called to better understand how it's done over there. Once that's done I can translate the concepts over here to DK94.
 
 # home.asm
 
@@ -595,6 +600,99 @@ Since wGBCBasePalPointers is 8 bytes that define the GBC's palette, we should lo
 
 # SendSGBPackets and InitGBCPalettes
 
-InitGBCPalettes is a bit of code nested inside of SendSGBPackets, which we saw earlier and gets called.
+InitGBCPalettes is a bit of code nested inside of SendSGBPackets, which we saw earlier and gets called as a part of SendSGBPackets. Presumably this is because SendSGBPackets is going to have the palette information we need for the GBC calls.
+
+SendSGBPackets from palettes.asm
+
+	SendSGBPackets:
+		ld a, [hGBC]	;gbcnote - replaced wGBC
+		and a
+		jr z, .notGBC
+		push de
+		call InitGBCPalettes
+		pop hl
+		;gbcnote - initialize the second pal packet in de (now in hl) then enable the lcd
+		call InitGBCPalettes
+		ld a, [rLCDC]
+		and rLCDC_ENABLE_MASK
+		ret z
+		call Delay3
+		ret
+	.notGBC
+		push de
+		call SendSGBPacket
+		pop hl
+		jp SendSGBPacket
+
+Line by line:
+
+	ld a, [hGBC]	;gbcnote - replaced wGBC
+	and a
+	jr z, .notGBC
+
+Load the value of the hGBC flag (set all the way back before init) in to reg A. AND'ing Reg A will give a 1 (true) if it's on GBC and a 0 (false) if not. If the result is a Zero flag, jump relative to .notGBC. Since we're on a GBC we will not skip the next bits.
+
+	push de
+	call InitGBCPalettes
+
+Take the value in regs DE and push it to the stack for use later. The value in DE is ??? maybe not important, we'll see in a bit.
+
+Next we call InitGBCPalettes (also in palettes.asm):  
+
+	InitGBCPalettes:	;gbcnote - updating this to work with the Yellow code
+		ld a, [hl]
+		and $f8
+		cp $20	;check to see if hl points to a blk pal packet
+		jp z, TranslatePalPacketToBGMapAttributes	;jump if so
+		;otherwise hl points to a different pal packet or wPalPacket
+		inc hl
+	index = 0
+		REPT NUM_ACTIVE_PALS
+			IF index > 0
+				pop hl
+			ENDC
+
+			ld a, [hli]	;get palette ID into 'A'
+			inc hl
+
+			IF index < (NUM_ACTIVE_PALS + -1)
+				push hl
+			ENDC
+
+			call GetGBCBasePalAddress	;get palette address into de
+			ld a, e
+			ld [wGBCBasePalPointers + index * 2], a
+			ld a, d
+			ld [wGBCBasePalPointers + index * 2 + 1], a
+
+			ld a, CONVERT_BGP
+			call DMGPalToGBCPal
+			ld a, index
+			call TransferCurBGPData
+
+			ld a, CONVERT_OBP0
+			call DMGPalToGBCPal
+			ld a, index
+			call TransferCurOBPData
+
+			ld a, CONVERT_OBP1
+			call DMGPalToGBCPal
+			ld a, index + 4
+			call TransferCurOBPData
+	index = index + 1
+		ENDR
+		ret
+
+Line by line
+
+	ld a, [hl]
+
+Load register A with the value from the address stored in HL. At this point HL may (should?) still contain the address for the SetPal function that we are interested in. (This is coming from _RunPaletteCommand). 
+
+	and $f8
+
+Do an AND between the value in HL's address and $F8. 	
 
 
+
+### TBD ###
