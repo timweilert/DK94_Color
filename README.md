@@ -96,116 +96,6 @@ Finally jump to the Init portion of the code. In a sense this bit of code could 
 We've checked the A register on boot for the kind of gameboy we are using by comparing to a defined constant (GBC EQU $11).
 From there we use the resulting comparison to set a flag (hGBC) to either 1 (on a GBC) or 0 (not a GBC).
 
-# Where does hGBC get called?
-
-Doing a quick search of the shinpokered codebase I see that hGBC gets called in a few spots. This may be a little bit of an arbitrary way to approach things, but I'm going to just start working through each of the instances to see where it's getting called to better understand how it's done over there. Once that's done I can translate the concepts over here to DK94.
-
-# home.asm
-
-Examining [home.asm](https://github.com/jojobear13/shinpokered/blob/master/home.asm#L2211-L2232) shows another gbcnote with new functions not in the original black-and-white version of Pokemon Red:
-
-	;gbcnote - new functions
-	UpdateGBCPal_BGP::
-		push af
-		ld a, [hGBC]
-		and a
-		jr z, .notGBC
-		push bc
-		push de
-		push hl
-		ld a, [rBGP]
-		ld b, a
-		ld a, [wLastBGP]
-		cp b
-		jr z, .noChangeInBGP
-		callba _UpdateGBCPal_BGP
-	.noChangeInBGP
-		pop hl
-		pop de
-		pop bc
-	.notGBC
-		pop af
-		ret
-
-This is clearly a function to Update the GBC Palette for the Background. Again, taking things line-by-line:
-
-	UpdateGBCPal_BGP::
-
-In this case we update the BackGround Pallette for GBC usage, however this code can get called anywhere and may not execute if we don't have a valid hGBC flag
-
-		push af
-
-Take the current value of the AF register and stick it on the stack (SP). Then decrement the SP by 2. This is done in case we aren't on a GBC and we need to recover the AF register values.
-
-		ld a, [hGBC]
-
-Put the value of the hGBC flag in to the A register
-
-		and a
-
-Doing an AND on A will give the following:
-- For DMG/SGB- hGBC is $00, so $00 AND $00 is going to give $00 (zero)
-- For GBC- hGBC is $01, so $01 AND $01 is going to give $01 (not zero)
-
-		jr z, .notGBC
-
-If the last operation was zero (DMG case) then relative jump to .notGBC, otherwise we go on.
-
-		push bc
-		push de
-		push hl
-
-These three push lines save off the current values in BC, DE, and HL. We use these registers in the meantime to do some palette comparisons.
-
-		ld a, [rBGP]
-
-Fill register A with the value from rBGP's address- [in shinpokered this is a constant ($FF47), which is commented as follows](https://github.com/jojobear13/shinpokered/blob/master/constants/hardware_constants.asm#L76):
-    
-	rBGP	EQU $ff47 ; BG Palette Data (R/W) - Non CGB Mode Only
-
-Okay, back to the home.asm code...
-
-		ld b, a
-
-Put the value from A (the BG palette data) in to B.
-
-		ld a, [wLastBGP]
-
-Put the value from wLastBGP in to A. wLastBGP is the Last BackGround Palette that was loaded, this is a memory location defined in [shinpokered's wram.asm](https://github.com/jojobear13/shinpokered/blob/master/wram.asm#L3011):
-
-    wLastBGP::
-      ds 1
-
-Basically, statically allocate 1 byte for this data at whatever address this happens to be when building occurs. Looking adjacent to this area it's basically nestled in an area in Work RAM where there was a gap. Okay, back to home.asm again...
-
-		cp b
-
-Compare B to A. If the wLastBGP is the same as the current rBGP, then the comparison throws a Z flag
-
-		jr z, .noChangeInBGP
-
-If we didn't change background palette then we jump to .noChangeinBGP
-
-		callba _UpdateGBCPal_BGP
-
-If we did change, then we do a callba macro using _UpdateGBCPal_BGP
-
-	.noChangeInBGP
-		pop hl
-		pop de
-		pop bc
-
-If we didn't actually change anything then restore the HL, DE, and BC registers to their states prior to entering this function.
-
-	.notGBC
-		pop af
-
-We came in to the function, found that we weren't on a GBC after comparing the hGBC register and jumped down here. Before we did we pushed AF on to the stack, so now we're popping AF back from the stack to restore the original state of things before the function was called.
-
-		ret
-	
-we're done, return to wherever we got called from. Pick up this thread later, I have another idea for how to proceed- start at the beginning of code execution.
-
 # Intro Code
 
 In shinpokered the intro.asm file covers the introductory bits of code. This is the first time things are being drawn on screen. Prior to this a bunch of stuff has executed in init.asm. The first major call of interest is PlayShootingStar. 
@@ -415,5 +305,296 @@ So what have we learned from _RunPaletteCommand?
 - The code here is basically a big switch statement that sets the CPU executing the case defined by whatever value is in Reg B at the time _RunPaletteCommand gets called.
 - There are some carve-outs for specific functions (UpdatepartyMenuBlkPacket) that allow us to inject some additional logic before we proceed.
 - It also enqueues SendSGBPackets to the top of the stack.
+- This whole chunk of code is really only run if we are on a Super Gameboy (recall back in RunPaletteCommand if we do not meet the criteria of being on a SGB we just return). While it was very enlightening to walk through _RunPaletteCommand, we actually don't need it for Gameboy Color enhancement (although should leave this kind of stuff in place if it's there so we can maintain compatibility with SGB).
+
+# LoadSGB
+
+I realize i just said that we might skip most of the code above if we're not in a Super Gameboy, well, turns out that shinpokered's code simply tacks on some extra logic to the Super Gameboy code that allows us to piggyback.
+
+LoadSGB is on of the first parts of code thar runs in init.asm as the pokemon program is starting up. It comes right before PlayIntro and our shooting star code.
+
+In palettes.asm:
+
+	LoadSGB:	;gbcnote - adjust for GBC
+		xor a
+		ld [wOnSGB], a
+		call CheckSGB
+		jr c, .onSGB
+		ld a, [hGBC]
+		and a
+		jr z, .onDMG
+		;if on gbc, set SGB flag but skip all the SGB vram stuff
+		ld a, $1
+		ld [wOnSGB], a
+	.onDMG
+		ret
+	.onSGB
+		ld a, $1
+		ld [wOnSGB], a
+		di
+		call PrepareSuperNintendoVRAMTransfer
+		ei
+		ld a, 1
+		ld [wCopyingSGBTileData], a
+		ld de, ChrTrnPacket
+		ld hl, SGBBorderGraphics
+		call CopyGfxToSuperNintendoVRAM
+		xor a
+		ld [wCopyingSGBTileData], a
+		ld de, PctTrnPacket
+		ld hl, BorderPalettes
+		call CopyGfxToSuperNintendoVRAM
+		xor a
+		ld [wCopyingSGBTileData], a
+		ld de, PalTrnPacket
+		ld hl, SuperPalettes
+		call CopyGfxToSuperNintendoVRAM
+		call ClearVram
+		ld hl, MaskEnCancelPacket
+		jp SendSGBPacket
+
+Line by line:
+
+		xor a
+		ld [wOnSGB], a
+		call CheckSGB
+
+XOR'ing A clears that register out, making it 0, we then put a 0 in the work RAM wOnSGB address. Then we call CheckSGB. I'm not going to dive in to that code, since it basically looks like it's doing a bunch of checks, but it does start out doing a SendSGBPacket command. If it is on a SGB then the carry flag gets set.
+
+	jr c, .onSGB
+
+If we are on a SGB, then the carry flag condition is true, so we'd skip ahead to the .onSGB section of this code. We are going to assume we're a GBC, so keep going.
+
+	ld a, [hGBC]
+	and a
+	jr z, .onDMG
+
+Here we see the hGBC value (I think for the first time in code execution?)- basically load reg A with the value from hGBC (recall 0 == not GBC, 1 == GBC). AND A with itself. If we get a zero as the result jump relative to .onDMG, otherwise continue. We will continue since the result of our AND A is not zero.
+
+#####PICK UP HERE
+
+# Returning to PlayShootingStar
+
+We're only 2 lines in and if we're on a GBC presumably we have the following setup:
+
+- Reg A has the value of the [wOnSGB] flag
+- Reg B has the value of the SET_PAL_GAME_FREAK_INTRO ($0C)
+- Everything else is a bit irrelevent.
+
+On to line 3:
+
+	callba LoadCopyrightAndTextBoxTiles
+
+callba is a macro that gets us on the right bank, the LoadCopyrightAndTextBoxTiles isn't really palette related, just loading up tile data to be displayed by the screen.
+
+	ldPal a, BLACK, DARK_GRAY, LIGHT_GRAY, WHITE
+
+Now we're talking- ldPal is another macro	
+
+	ldPal: MACRO
+		ld \1, \2 << 6 | \3 << 4 | \4 << 2 | \5
+	ENDM
+
+In effect we are loading reg A with values for BLACK, DARK_GRAY, LIGHT_GRAY, and WHITE all bit shifted around each other to fit in a single byte.
+
+Looking at the result of the shifts and the ORs, it looks like the bit order is WHITE,LIGHT_GRAY,DARK_GREY,BLACK. These values are constants- I think smartly defined in RGBASM or something like that.
+
+So, the result is that Reg A now has values in it that represent colors.
+
+	ld [rBGP], a
+	
+Now set the value of rBGP to be the bits from A. rBGP is as follows via hardware_constants.asm:
+
+	rBGP        EQU $ff47 ; BG Palette Data (R/W) - Non CGB Mode Only
+
+So in effect we've just put background palette data in to address $FF47 which is only used in non Gameboy Color mode. Back to PlayShootingStar once more:
+
+	call UpdateGBCPal_BGP
+
+Finally something related to the GBC and now we can explore the mechanics of actually doing GBC functions.
+
+# Where does hGBC get called?
+
+Doing a quick search of the shinpokered codebase I see that hGBC gets called in a few spots. This may be a little bit of an arbitrary way to approach things, but I'm going to just start working through each of the instances to see where it's getting called to better understand how it's done over there. Once that's done I can translate the concepts over here to DK94.
+
+# home.asm
+
+Examining [home.asm](https://github.com/jojobear13/shinpokered/blob/master/home.asm#L2211-L2232) shows another gbcnote with new functions not in the original black-and-white version of Pokemon Red:
+
+	;gbcnote - new functions
+	UpdateGBCPal_BGP::
+		push af
+		ld a, [hGBC]
+		and a
+		jr z, .notGBC
+		push bc
+		push de
+		push hl
+		ld a, [rBGP]
+		ld b, a
+		ld a, [wLastBGP]
+		cp b
+		jr z, .noChangeInBGP
+		callba _UpdateGBCPal_BGP
+	.noChangeInBGP
+		pop hl
+		pop de
+		pop bc
+	.notGBC
+		pop af
+		ret
+
+This is clearly a function to Update the GBC Palette for the Background. Again, taking things line-by-line:
+
+	UpdateGBCPal_BGP::
+
+In this case we update the BackGround Pallette for GBC usage, however this code can get called anywhere and may not execute if we don't have a valid hGBC flag
+
+		push af
+
+Take the current value of the AF register and stick it on the stack (SP). Then decrement the SP by 2. This is done in case we aren't on a GBC and we need to recover the AF register values.
+
+		ld a, [hGBC]
+
+Put the value of the hGBC flag in to the A register
+
+		and a
+
+Doing an AND on A will give the following:
+- For DMG/SGB- hGBC is $00, so $00 AND $00 is going to give $00 (zero)
+- For GBC- hGBC is $01, so $01 AND $01 is going to give $01 (not zero)
+
+		jr z, .notGBC
+
+If the last operation was zero (DMG case) then relative jump to .notGBC, otherwise we go on.
+
+		push bc
+		push de
+		push hl
+
+These three push lines save off the current values in BC, DE, and HL. We use these registers in the meantime to do some palette comparisons.
+
+		ld a, [rBGP]
+
+Fill register A with the value from rBGP's address- [in shinpokered this is a constant ($FF47), which is commented as follows](https://github.com/jojobear13/shinpokered/blob/master/constants/hardware_constants.asm#L76):
+    
+	rBGP	EQU $ff47 ; BG Palette Data (R/W) - Non CGB Mode Only
+
+Okay, back to the home.asm code...
+
+		ld b, a
+
+Put the value from A (the BG palette data) in to B.
+
+		ld a, [wLastBGP]
+
+Put the value from wLastBGP in to A. wLastBGP is the Last BackGround Palette that was loaded, this is a memory location defined in [shinpokered's wram.asm](https://github.com/jojobear13/shinpokered/blob/master/wram.asm#L3011):
+
+    wLastBGP::
+      ds 1
+
+Basically, statically allocate 1 byte for this data at whatever address this happens to be when building occurs. Looking adjacent to this area it's basically nestled in an area in Work RAM where there was a gap. Okay, back to home.asm again...
+
+		cp b
+
+Compare B to A. If the wLastBGP is the same as the current rBGP, then the comparison throws a Z flag
+
+		jr z, .noChangeInBGP
+
+If we didn't change background palette then we jump to .noChangeinBGP
+
+		callba _UpdateGBCPal_BGP
+
+If we did change, then we do a callba macro using _UpdateGBCPal_BGP
+
+	.noChangeInBGP
+		pop hl
+		pop de
+		pop bc
+
+If we didn't actually change anything then restore the HL, DE, and BC registers to their states prior to entering this function.
+
+	.notGBC
+		pop af
+
+We came in to the function, found that we weren't on a GBC after comparing the hGBC register and jumped down here. Before we did we pushed AF on to the stack, so now we're popping AF back from the stack to restore the original state of things before the function was called.
+
+		ret
+	
+we're done, return to wherever we got called from.
+
+# _UpdateGBCPal_BGP
+
+I glossed over this a bit earlier because it deserves it's own exploration. This is the real meat of actually updating palettes on the Gameboy Color. For now this is just the background palette, but we will also need to cover Object palettes too.
+
+From shinpokered's palettes.asm:
+
+	_UpdateGBCPal_BGP::
+	index = 0
+		REPT NUM_ACTIVE_PALS
+			ld a, [wGBCBasePalPointers + index * 2]
+			ld e, a
+			ld a, [wGBCBasePalPointers + index * 2 + 1]
+			ld d, a
+			xor a ; CONVERT_BGP
+			call DMGPalToGBCPal
+			ld a, index
+			call BufferBGPPal	; Copy wGBCPal to palette indexed in wBGPPalsBuffer.
+	index = index + 1
+		ENDR
+		call TransferBGPPals	;Transfer wBGPPalsBuffer contents to rBGPD
+		ret
+
+Line by lininig it here:
+
+	index = 0
+
+We're about to loop something
+
+	REPT NUM_ACTIVE_PALS
+
+This constant is defined in misc_constants.asm and is equal to 4. I think that's standard for the SGB, so hopefully that will translate to DK94. REPT just means we're going to repeat the following code that many times.
+
+	ld a, [wGBCBasePalPointers + index * 2]
+
+Load Reg A with the value of working RAM's wGBCBasePalPointers + index * 2- for the first iteration this will just give us the value of wGBCBasePalPointers. In the wram.asm layout: 
+
+	wGBCBasePalPointers:: 
+		ds NUM_ACTIVE_PALS * 2 ; 8 bytes
+
+We get 2 bytes per palette. In this case since NUM_ACTIVE_PALS is 4 the wGBCBasePalPointers memory is 8 bytes long (think $01 23 45 67) starting at wherever wGBCBasePalPointers lives in memory (looks like north of address D669). so the index * 2 up in the ld a [wGBCBasePalPointers + index * 2] basically ensures that we stay on an even byte.
+
+	ld e, a
+
+Load that first value from wGBCBasePalPointers in to Reg E.
+
+	ld a, [wGBCBasePalPointers + index * 2 + 1]
+
+Load reg A with the adjacent value.
+
+	ld d, a
+
+Put the new A value in to reg D. Thinking about our $01 23 45 67 example above, on the first iteration (index == 0) DE would now have the value $01 (or is it $10, I can never quite tell with the endianness of bytes on Gameboy).
+
+	xor a ; CONVERT_BGP
+
+CONVERT_BGP comes from misc_constants and is part of what I believe is a GBC addition for shinpokered:
+
+	; DMGPalToGBCPal
+	CONVERT_BGP  EQU 0
+	CONVERT_OBP0 EQU 1
+	CONVERT_OBP1 EQU 2
+
+In any case, we now XOR the value in A with 0. 
+
+Now might be a good time to pause _UpdateGBCPAL_BGP and dig in to how wGBCBasePalPointers gets its values.
+
+## Digression: wGBCBasePalPointers
+
+Since wGBCBasePalPointers is 8 bytes that define the GBC's palette, we should look at where this value gets changed. In shinpokered there's really only one spot: Init GBCPalettes:
+
+# SendSGBPackets and InitGBCPalettes
+
+InitGBCPalettes is a bit of code nested inside of SendSGBPackets, which we saw earlier and gets called.
 
 
