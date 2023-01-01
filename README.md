@@ -67,7 +67,7 @@ For a GBC, cp GBC results in $00 which throws the Z flag in the F register becau
 
 		jr z, .gbc
 
-Thisdoes a relative jump based on the result of the last operand (cp GBC). If the last value was zero (which implies we're on a GBC) then we jump to the line below, .gbc. If not, just proceed to the next line.
+This does a relative jump based on the result of the last operand (cp GBC). If the last value was zero (which implies we're on a GBC) then we jump to the line below, .gbc. If not, just proceed to the next line.
 
 		xor a
 
@@ -85,9 +85,9 @@ Set register A to the value 1, used as a marker for being in GBC mode.
 	.ok
 		ld [hGBC], a
     
-Set the memory address at hGBC (in this case it's [$FFFE, per hram.asm](https://github.com/jojobear13/shinpokered/blob/master/hram.asm#L331)) to the value from A. If we're in GBC mode that value is 1, if we're not then A should be 0. I take it that we're going to use Hi RAM here since it's pretty fast and we want to avoid bogging things down when doing checks of the hGBC flag later
+Set the memory address at hGBC (in this case it's [$FFFE, per hram.asm](https://github.com/jojobear13/shinpokered/blob/master/hram.asm#L331)) to the value from A. If we're in GBC mode that value is 1, if we're not then A should be 0. I take it that we're going to use Hi RAM here since it's pretty fast and we want to avoid bogging things down when doing checks of the hGBC flag later. Also of note- in shinpokered there's also an additional function to change the shader gamma by setting hGBC to value $02. I don't believe this will come in to play for DK94.
 
-	jp Init
+		jp Init
 
 Finally jump to the Init portion of the code. In a sense this bit of code could be added before the main code without altering the main.
 
@@ -204,4 +204,216 @@ We came in to the function, found that we weren't on a GBC after comparing the h
 
 		ret
 	
-we're done, return to wherever we got called from.
+we're done, return to wherever we got called from. Pick up this thread later, I have another idea for how to proceed- start at the beginning of code execution.
+
+# Intro Code
+
+In shinpokered the intro.asm file covers the introductory bits of code. This is the first time things are being drawn on screen. Prior to this a bunch of stuff has executed in init.asm. The first major call of interest is PlayShootingStar. 
+
+	PlayShootingStar:
+		ld b, SET_PAL_GAME_FREAK_INTRO
+		call RunPaletteCommand
+		callba LoadCopyrightAndTextBoxTiles
+		ldPal a, BLACK, DARK_GRAY, LIGHT_GRAY, WHITE
+		ld [rBGP], a
+		call UpdateGBCPal_BGP
+		ld c, 180
+		...
+
+Line by lining it again:
+
+	ld b, SET_PAL_GAME_FREAK_INTRO
+
+Puts the value from constant SET_PAL_GAME_FREAK_INTRO in to register B. This constant is equal to value $0C
+
+	call RunPaletteCommand
+
+Let's call the palette command- I think we'll need to duplicate this in DK94. Here's what that RunPaletteCommand code looks like (in home.asm)
+
+	RunPaletteCommand::
+		ld a, [wOnSGB]
+		and a
+		ret z
+		predef_jump _RunPaletteCommand
+
+Load register A with the value from the wOnSGB work RAM address (similar to our hGBC address flag perhaps?).
+
+AND A with itself. At this point if shinpokered is on a SGB, then A should have value 1, so anding with itself gives us 1. If it's not then it'll result in 0. If the result of 'AND A' is zero, then return to where this case called, otherwise do predef_jump _RunPaletteCommand.
+
+predef_jump is just a macro that wraps jumping to a specific spot in plain English rather than by address. In asm_macros.asm
+
+	predef_jump: MACRO
+		predef_id \1
+		jp Predef
+	ENDM
+
+This actually wraps another macro called predef_id:
+
+	predef_id: MACRO
+		ld a, (\1Predef - PredefPointers) / 3
+	ENDM
+
+PredefPointers is a big list in predefs.asm that points to ASM routines. They all get added by the add_predef macro:
+
+	add_predef: MACRO
+	\1Predef::
+		db BANK(\1)
+		dw \1
+	ENDM
+
+The end result is that we call the _RunPaletteCommand code (that lives in palettes.asm). I think this is the core of the thing.
+
+	_RunPaletteCommand:
+		call GetPredefRegisters
+		ld a, b	;b holds the address of the pal command to run
+		cp $ff
+		jr nz, .next
+		ld a, [wDefaultPaletteCommand] ; use default command if command ID is $ff
+	.next
+		cp UPDATE_PARTY_MENU_BLK_PACKET
+		jp z, UpdatePartyMenuBlkPacket
+		ld l, a
+		ld h, 0
+		add hl, hl
+		ld de, SetPalFunctions
+		add hl, de
+		ld a, [hli]
+		ld h, [hl]
+		ld l, a
+		ld de, SendSGBPackets
+		push de	;by pushing de, the next 'ret' command encountered will jump to SendSGBPackets
+		jp hl
+
+# _RunPaletteCommand
+
+Taking it one line at a time:
+
+	call GetPredefRegisters
+
+Back over in predefs.asm:
+
+	GetPredefRegisters::
+	; Restore the contents of register pairs
+	; when GetPredefPointer was called.
+		ld a, [wPredefRegisters + 0]
+		ld h, a
+		ld a, [wPredefRegisters + 1]
+		ld l, a
+		ld a, [wPredefRegisters + 2]
+		ld d, a
+		ld a, [wPredefRegisters + 3]
+		ld e, a
+		ld a, [wPredefRegisters + 4]
+		ld b, a
+		ld a, [wPredefRegisters + 5]
+		ld c, a
+		ret
+
+This code is loading H,L,D,E,B, and C registers with values from Working RAM, predefined registers, all 6 bytes. In shinpokered these live starting at address $CC4F.
+
+	ld a, b	;b holds the address of the pal command to run
+
+As we recall from back up at the beginning of PlayShootingStar, the first thing we did was load register B with SET_PAL_GAME_FREAK_INTRO, or the value $0C. That value is now loaded in to register A.
+
+	cp $ff
+
+Compare the value $FF to the value in A, which is $0C. It's been a minute since I worked on this, but the cp (compare) instruction subracts the value given from the value in register A then sets flags. It doesn't store the value. Since $FF is the maximum, we are going to have an underflow (N) flag high, Z flag low.
+
+	jr nz, .next
+
+If the result of the compare is not zero (N flag high, Z flag low), then jump relative to the .next section.
+
+	ld a, [wDefaultPaletteCommand] ; use default command if command ID is $ff
+
+There's a default palette that's defined in work RAM- we use that if the commanded value in register B was $FF. In shinpokered the wDefaultPaletteCommand value is only set in a few places. It can be set in battles, on the overworld, and- importantly in our case- for the Gamefreak intro. Over in palettes.asm:
+
+	SetPal_GameFreakIntro:
+		ld hl, PalPacket_GameFreakIntro
+		ld de, BlkPacket_GameFreakIntro
+		ld a, SET_PAL_GENERIC
+		ld [wDefaultPaletteCommand], a
+		ret
+
+I think this code gets called in the init.asm or somewhere before we get to the intro palette code we're talking about here. In any case, that value is a constant $08 (from the same area of palette_constants.asm that we saw the SET_PAL_GAME_FREAK_INTRO constant).
+
+To recap up to this point- we've seeded the _RunPaletteCommand with a B register value of $0C and checked that B reg's value isn't $FF. If it was $FF for some reason we'd go check a work RAM address for the value we should use instead. Proceeding to the .next section:
+
+	cp UPDATE_PARTY_MENU_BLK_PACKET
+
+We now compare the value in reg A to the constant UPDATE_PARTY_MENU_BLK_PACKET (which from the palette_constants.asm is $FC). Since our value (SET_PAL_GAME_FREAK_INTRO == $0C we will have a N flag and no Z flag)	
+
+	jp z, UpdatePartyMenuBlkPacket
+
+If we did have a zero result (meaning that we had sent the UPDATE_PARTY_MENU_BLK_PACKET in to the _RunPaletteCommand), we would jump to UpdatePartyMenuBlkPacket. I'm going to ignore this for now, but it shows how we can set up different cases to jump out when we have particular palettes being loaded.
+
+	ld l, a
+	ld h, 0
+
+Load register L with the value from A ($0C) and load register H with value $0.
+
+	add hl, hl
+
+Add HL's value to itself and store it to HL. In this case $0C + $0C will give us $18.
+
+	ld de, SetPalFunctions
+
+Load the DE register pair with the SetPalFunctions address.
+
+SetPalFunctions defines a bunch of SetPal functions (as the name would suggest) data via dw instructions. These are basically all the palette functions for the whole game. From palettes.asm:
+
+	SetPalFunctions:
+		dw SetPal_BattleBlack
+		dw SetPal_Battle
+		dw SetPal_TownMap
+		dw SetPal_StatusScreen
+		dw SetPal_Pokedex
+		dw SetPal_Slots
+		dw SetPal_TitleScreen
+		dw SetPal_NidorinoIntro
+		dw SetPal_Generic
+		dw SetPal_Overworld
+		dw SetPal_PartyMenu
+		dw SetPal_PokemonWholeScreen
+		dw SetPal_GameFreakIntro
+		dw SetPal_TrainerCard
+		;gbctest - adding packets from yellow
+		dw SendUnknownPalPacket_7205d
+		dw SendUnknownPalPacket_72064
+
+Okay, back at the intro we've primed the DE register with the address for the SetPal_Functions code.		
+
+	add hl, de
+
+Add the value in DE (our address for SetPal_Functions) to the value we already had in HL (recall this is $18, which is the result of adding the original value $0C - the desired palette - to itself). I believe this doubling is due to the fact that SetPalFunctions is defininng each of the functions via dw instruction (using words instead of bytes means we need to double the size of the offset byte).
+
+	ld a, [hli]
+
+Store the value from the address that resulted from the add above to the A register and increment the HL register. Reg A now presumably contains the beginning value for the SetPal_GameFreakIntro code. 
+
+	ld h, [hl]
+
+Store the value from the address at HL (start of the SetPal_GameFreakIntro + 1 due to the increment above) in to register H. 	
+
+	ld l, a
+
+Store the value from Reg A in to reg L. So now Reg L has the value from the address for the start of the SetPal_GameFreakIntro code and H has the value from SetPal_GameFreakIntro + 1
+
+	ld de, SendSGBPackets
+
+As you recall, DE currently has the value of the SetPal_Functions address in it, now we replace it with the SendSGBPackets address.
+
+	push de	;by pushing de, the next 'ret' command encountered will jump to SendSGBPackets
+
+Push the value in DE to the stack- basically ensuring that the next function that gets returned to will send us to the top of the stack, ie - SendSGBPackets.
+
+	jp hl
+
+Now we jump to the address that's in HL, which as we recall is effectively the address to begin executing the SetPal_GameFreakIntro code.
+
+So what have we learned from _RunPaletteCommand?
+
+- The code here is basically a big switch statement that sets the CPU executing the case defined by whatever value is in Reg B at the time _RunPaletteCommand gets called.
+- There are some carve-outs for specific functions (UpdatepartyMenuBlkPacket) that allow us to inject some additional logic before we proceed.
+- It also enqueues SendSGBPackets to the top of the stack.
+
+
