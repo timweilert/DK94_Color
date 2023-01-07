@@ -110,118 +110,118 @@ ENDM
 
 
 SGBPacketTable:
-    dw Packet_0 ;index 0
-    dw MaskEnBlankBlackPacket
-    dw Packet_2
-    dw Packet_3
-    dw Packet_4
-    dw PalPriPacket
-    dw Packet_6
-    dw MaskEnFreezePacket
-    dw Packet_8
-    dw MltReq1Packet
-    dw MltReq2Packet ;index 10
-    dw MaskEnCancelPacket
-    dw Packet_12
-    dw Packet_13
-    dw Packet_14
-    dw Packet_15
-    dw PalTrnPacket
-    dw AttrTrnPacket
-    dw Packet_18
-    dw Packet_18
-    dw Packet_18 ;index 20
-    dw Packet_18
-    dw Packet_19
-    dw Packet_20
-    dw Packet_21
-    dw Packet_22
-    dw Packet_23
-    dw Packet_24
-    dw Packet_25
-    dw Packet_26
-    dw Packet_27 ;index 30
-    dw Packet_28
-    dw SouTrnPacket
-    dw Packet_30
-    dw Packet_31
-    dw Packet_32
-    dw Packet_33
-    dw Packet_34
-    dw Packet_32
-    dw Packet_35
-    dw Packet_36 ;index 40
-    dw Packet_37
-    dw Packet_38
-    dw Packet_39
-    dw Packet_40
-    dw Packet_41
-    dw Packet_42
-    dw Packet_43
-    dw Packet_44
-    dw Packet_45
-    dw Packet_46 ;index 50
-    dw Packet_47
-    dw Packet_48
-    dw Packet_50
-    dw Packet_49
-    dw Packet_51
-    dw Packet_52
-    dw Packet_53
-    dw Packet_54
-    dw Packet_55
-    dw Packet_56 ;index 60
-    dw Packet_57
-    dw Packet_57
-    dw Packet_58
-    dw Packet_59
-    dw Packet_60
-    dw Packet_61
-    dw Packet_62
-    dw Packet_63
-    dw Packet_64
-    dw Packet_65 ;index 70
-    dw Packet_66
-    dw Packet_67
-    dw Packet_68
-    dw Packet_69
-    dw Packet_70
-    dw Packet_71
-    dw AttractionDisablePacket
-    dw AttractionEnablePacket
-    dw Packet_74
-    dw Packet_75 ;index 80
-    dw Packet_77
-    dw Packet_78
-    dw Packet_77
-    dw Packet_78
-    dw Packet_78
-    dw Packet_77
-    dw Packet_78
-    dw Packet_79
-    dw Packet_77
-    dw Packet_79 ;index 90
-    dw Packet_70
-    dw Packet_70
-    dw Packet_70
-    dw Packet_70
-    dw Packet_80
-    dw Packet_85
-    dw Packet_86
-    dw Packet_87
-    dw Packet_88
-    dw Packet_81 ;index 100
-    dw Packet_82
-    dw Packet_83
-    dw Packet_84
-    dw SGBPatch1
-    dw SGBPatch2
-    dw SGBPatch3
-    dw SGBPatch4
-    dw SGBPatch5
-    dw SGBPatch6
-    dw SGBPatch7 ;index 110
-    dw SGBPatch8
+    dw Packet_0 ; index $00
+    dw MaskEnBlankBlackPacket ; $01
+    dw Packet_2 ; $02
+    dw Packet_3 ; $03
+    dw Packet_4 ; $04
+    dw PalPriPacket ; $05
+    dw Packet_6 ; $06
+    dw MaskEnFreezePacket ; $07
+    dw Packet_8 ; $08
+    dw MltReq1Packet ; $09
+    dw MltReq2Packet ; $0A
+    dw MaskEnCancelPacket ; $0B
+    dw Packet_12 ; $0C
+    dw Packet_13 ; $0D
+    dw Packet_14 ; $0E
+    dw Packet_15 ; $0F
+    dw PalTrnPacket ; $10
+    dw AttrTrnPacket ; $11
+    dw Packet_18 ; $12
+    dw Packet_18 ; $13
+    dw Packet_18 ; $14
+    dw Packet_18 ; $15
+    dw Packet_19 ; $16
+    dw Packet_20 ; $17
+    dw Packet_21 ; $18
+    dw Packet_22 ; $19
+    dw Packet_23 ; $1A
+    dw Packet_24 ; $1B
+    dw Packet_25 ; $1C
+    dw Packet_26 ; $1D
+    dw Packet_27 ; $1E
+    dw Packet_28 ; $1F
+    dw SouTrnPacket ; $20
+    dw Packet_30 ; $21
+    dw Packet_31 ; $22
+    dw Packet_32 ; $23
+    dw Packet_33 ; $24
+    dw Packet_34 ; $25
+    dw Packet_32 ; $26
+    dw Packet_35 ; $27
+    dw Packet_36 ; $28
+    dw Packet_37 ; $29
+    dw Packet_38 ; $2A
+    dw Packet_39 ; $2B
+    dw Packet_40 ; $2C
+    dw Packet_41 ; $2D
+    dw Packet_42 ; $2E
+    dw Packet_43 ; $2F
+    dw Packet_44 ; $30
+    dw Packet_45 ; $31
+    dw Packet_46 ; $32
+    dw Packet_47 ; $33
+    dw Packet_48 ; $34
+    dw Packet_50 ; $35
+    dw Packet_49 ; $36
+    dw Packet_51 ; $37
+    dw Packet_52 ; $38
+    dw Packet_53 ; $39
+    dw Packet_54 ; $3A
+    dw Packet_55 ; $3B
+    dw Packet_56 ; $3C
+    dw Packet_57 ; $3D
+    dw Packet_57 ; $3E
+    dw Packet_58 ; $3F
+    dw Packet_59 ; $40
+    dw Packet_60 ; $41
+    dw Packet_61 ; $42
+    dw Packet_62 ; $43
+    dw Packet_63 ; $44
+    dw Packet_64 ; $45
+    dw Packet_65 ; $46
+    dw Packet_66 ; $47
+    dw Packet_67 ; $48
+    dw Packet_68 ; $49
+    dw Packet_69 ; $4A
+    dw Packet_70 ; $4B
+    dw Packet_71 ; $4C
+    dw AttractionDisablePacket ; $4D
+    dw AttractionEnablePacket ; $4E
+    dw Packet_74 ; $4F
+    dw Packet_75 ; $50
+    dw Packet_77 ; $51
+    dw Packet_78 ; $52
+    dw Packet_77 ; $53
+    dw Packet_78 ; $54
+    dw Packet_78 ; $55
+    dw Packet_77 ; $56
+    dw Packet_78 ; $57
+    dw Packet_79 ; $58
+    dw Packet_77 ; $59
+    dw Packet_79 ; $5A
+    dw Packet_70 ; $5B
+    dw Packet_70 ; $5C
+    dw Packet_70 ; $5D
+    dw Packet_70 ; $5E
+    dw Packet_80 ; $5F
+    dw Packet_85 ; $60
+    dw Packet_86 ; $61
+    dw Packet_87 ; $62
+    dw Packet_88 ; $63
+    dw Packet_81 ; $64
+    dw Packet_82 ; $65
+    dw Packet_83 ; $66
+    dw Packet_84 ; $67
+    dw SGBPatch1 ; $68
+    dw SGBPatch2 ; $69
+    dw SGBPatch3 ; $6A
+    dw SGBPatch4 ; $6B
+    dw SGBPatch5 ; $6C
+    dw SGBPatch6 ; $6D
+    dw SGBPatch7 ; $6E
+    dw SGBPatch8 ; $6F
 
 ;offset 40e0
 Packet_0:

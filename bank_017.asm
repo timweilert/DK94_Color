@@ -863,9 +863,9 @@ Call_017_732b:
     ldh [$ff8f], a
     ld a, $01
     call Call_000_1e38
-    ld hl, $da3d
-    ld de, $ce1d
-    ld c, $03
+    ld hl, $da3d ; $DA3D is where palette data is stored by Call_000_1e38
+    ld de, $ce1d ; Destination address for upcoming CopyData function
+    ld c, $03 ; Length of data to be copied- Since palette data is 3 bytes long this makes sense, we are saving it off to #CE1D
     call CopyData
     ld a, [$ca66]
     add $10

@@ -6,18 +6,21 @@ SECTION "ROM Bank 0 Main", ROM0[$150]
 ; jump here from home.asm's Boot section.
 Start:
     di ;disable interrupts
-    ld sp, $fffe ; set the stack pointer to $FFFE - basically at the top of memory
+    ld sp, $fffe ; set the stack pointer to $FFFE - basically at the top of memory because the init function will use 
+    ; POP instructions which decrement the stack and we don't want to risk underflowing the Stack Pointer.
     ld a, $01 ; set A to $01
     rst BankswitchRST ; Bank switch to bank $01
     call Init ; call the Init function
-    ; At this point we have zeroed out a bunch of working RAM, maintained values in wIsOnSGB and wHUDTextType, 
+    ; At this point we have zeroed out a bunch of working RAM (including $C000 to $DEF7 and $DF00 to $DFFF),
+    ; maintained values in wIsOnSGB and wHUDTextType, 
     ; Initialized the sound, set several addresses ($DA5F and others) to value $61DA, set the hFunctionTableIndex to $01 (hasn't been set yet),
     ; Set number of wLives to $04, and potentially set the bonus game address $C858 to value $FF.
     ; We maintain the wIsOnSGB and wHUDTextType because the Init code can be called from a soft reset via CheckIfResetCombinationPressed
     ; May consider adding a distinct carve out for hGBC as well here.
-    call GetOAMDmaCodeAddress
-    ld a, $03
-    call Call_000_1e38
+    call GetOAMDmaCodeAddress ; Effectively clear out Object Attribute Memory ($FE00 to $FE9F) with zeros by copying the contents of 
+    ; WRAM addresses $C000 to $C09F to the OAM range.
+    ld a, $03 ; Load A with value $03
+    call Call_000_1e38 ; Sets the rBGP, and Object palette data registers to values stored in $1E6F, offset by 3 palettes worth of data (see notes)
     call CheckIfOnSGB
     call Call_000_018e
     ld a, $07
@@ -339,7 +342,7 @@ dw Call_03aa
 Call_0364:
     ld a, $07
     ldh [rWX], a
-    ld hl, $ff40
+    ld hl, $ff40 ; $FF40 is the rLCDC register
     res 1, [hl]
     ld a, [wHUDTextType]
     ldh [rBGP], a
@@ -352,7 +355,7 @@ Jump_000_0376:
     ret
 
 Call_037b:
-    ld hl, $ff40
+    ld hl, $ff40 ; $FF40 is the rLCDC register
     set 1, [hl]
     ld a, $a7
     ldh [rWX], a
@@ -2104,7 +2107,8 @@ Call_000_0e4d:
     jr z, jr_000_0eb1
     cp $0e
     ret nz
-jr_000_0eb1:
+jr_000_0eb1: ; uses Jump_000_1e38 with seed value $0F to set rBGP and rOBP palette data to values that are stored starting at $1E6F + an offset
+    ; calculated using $0F. It's $0F + (2*$0F) or $2D
     ld a, $0f
     jp Jump_000_1e38
 
@@ -2253,24 +2257,46 @@ Call_000_0f7e:
 UnknownData_0f8a:
 db $27,$9C,$01,$07,$90,$0F,$0B,$0C,$0D,$0E,$00,$0F,$10,$00,$00,$00,$00,$00,$78,$78,$78,$78,$00,$00,$78,$78,$00,$00,$00,$00,$B4,$B4
 
-
+; This loads up the address of the code OAMDMACode 
+; (looking at debugger appears to be addr. $0FB8 in an unmodified ROM)
+; That address is loaded in to the HL register
+; It then copies the data starting at the address of OAMDMACode,
+; copying $80 minus $0A bytes of data to addresses starting at 
+; memory location $FF80 
+; This is done because the CPU can only access HRAM during DMA transfers.
 GetOAMDmaCodeAddress:
     ;Set bc to 0xa80
     ld c, $80
     ld b, $0a
     ld hl, OAMDMACode
 .loop:
-    ld a, [hl+]
-    ld [c], a
+    ld a, [hl+] ; load A with value at HL and increment HL 
+    ld [c], a ; Load C with the value that came from HL, via A.
+    ; Since this code is executing in Hi RAM, it's actually not just at addr. $0080 (in the low rom)
+    ; but rather at address $FF00 + C- so starting at $FF80 and going up to $FF8A (non inclusive, 
+    ; so actually going up to $FF89
+    ; The 'inc c' and 'dec b' are the loop logic
     inc c
     dec b
     jr nz, .loop
-    ret
+    ret ; return from where called.
 
 ;ff80 oam dma code, offset: 0xfb8
+; This code sets rDMA to value $C0 then loops doing nothing except decrementing A for $28 clock cycles.
+; This is likely due to the fact that the DMA transfer we just commanded takes that long.
+; Very similar to DMA code that was in Pokemon.
+; rDMA is the DMA Transfer and Start Address
+; https://gbdev.io/pandocs/OAM_DMA_Transfer.html?highlight=ff46#ff46--dma-oam-dma-source-address--start
+; Writing to rDMA launches a DMA transfer from ROM or RAM to Object Attribute Memory (OAM)
+; The written value specifies the transfer source address divided by $100.
 OAMDMACode:
     ld a, $c0
     ldh [rDMA], a
+    ; LDH is just like LD, but for high RAM
+    ; By loading rDMA with the value $C0, we are copying data from working RAM addresses
+    ; $C000 to $C09F over in to $FE00 to $FE9F (the $FEXX range here is the Object Attr. Memory)
+    ; During startup of the game this effectively zeros out OAM because the Init function 
+    ; Has a step that clears WRAM0 starting at $C000 and going to $DEF7
     ld a, $28
 .loop:
     dec a
@@ -4882,26 +4908,111 @@ Call_000_1e2f:
 
 Call_000_1e38:
 Jump_000_1e38:
-    ld b, a
-    add a
-    add b
-    ld b, $00
-    ld c, a
-    ld hl, $1e6f
-    add hl, bc
-    ld bc, $da3d
-    ld a, [hl+]
-    ldh [rBGP], a
-    ld [bc], a
-    inc bc
-    ld a, [hl+]
-    ldh [rOBP0], a
-    ld [bc], a
-    inc bc
-    ld a, [hl]
-    ldh [rOBP1], a
-    ld [bc], a
-    ret
+    ld b, a ; load B with A. 
+    ; During program start this value is $03
+    add a ; Double A by adding it to itself (at start, now $06)
+    add b ; Add B to A (at start, $03 plus $06 equals $09)
+    ld b, $00 ; Set B to value $00
+    ld c, a ; Save off the value in A (at start $09) to reg C
+    ; BC is now $0009
+    ld hl, $1e6f ; Set HL to $1E6F
+    add hl, bc ; Add HL and BC together (at start, $1E6F + $0009 equals $1E78), store result in HL
+    ld bc, $da3d ; Set BC to $DA3D
+    ld a, [hl+] ; Set A to the value referenced by HL (at start value in $1E78 is $9C) and increment HL to $1E79
+    ldh [rBGP], a ; Set the hardware register for the Background Palette Data to value at HL (@start: $9C)
+
+    ; Per pandocs - https://gbdev.io/pandocs/Palettes.html?highlight=ff47#ff47--bgp-non-cgb-mode-only-bg-palette-data
+    ; This register assigns gray shades to the color indexes of the BG and Window tiles
+    ; Bit 7-6 - Color for index 3
+    ; Bit 5-4 - Color for index 2
+    ; Bit 3-2 - Color for index 1
+    ; Bit 1-0 - Color for index 0
+    ;
+    ; Further more, each value is equal to a color
+    ; Value: Color
+    ; 0: White
+    ; 1: Light Grey
+    ; 2: Dark Grey
+    ; 3: Black
+    ; 
+    ; In Binary, $9C is %10011100
+    ; Since a Gameboy is little endian that means:
+    ; Bit 0: 1
+    ; Bit 1: 0
+    ; Bit 2: 0
+    ; Bit 3: 1
+    ; Bit 4: 1
+    ; Bit 5: 1
+    ; Bit 6: 0
+    ; Bit 7: 0
+    ; So $9C is equivalent to the following decimal pairs:
+    ; Color for Index 0 (bit 0-1): %10 == 2 = Dark Grey
+    ; Color for Index 1 (bit 2-3): %01 == 1 = Light Grey
+    ; Color for Index 2 (bit 4-5): %11 == 3 = Black
+    ; Color for Index 3 (bit 6-7): %00 == 0 = White
+
+    ld [bc], a ; Load the value referenced by BC with the value from A
+    ; BC is currently $DA3D and at start A is currently $9C
+    inc bc ; Increment BC to $DA3E
+    ld a, [hl+] ; Load A with the value from HL and increment HL to $1E7A
+    ; At start this is loading A with the value referenced by $1E79, which is $36
+    ldh [rOBP0], a ; Load up the hardware register for Object 0's palette data with the value from A
+    ; rOBP0 and rOBP1 follow a similar paradigm to rBGP, except that the lowest Index (0, bits 0-1) is ignored
+    ; because for objects the 0th palette is always transparent
+    ; At start $36 == %00110110
+    ; So it follows that...
+    ; Index 0 - ignored, transparent
+    ; Index 1 - %11 == 3 = Black
+    ; Index 2 - %01 == 1 = Light Grey
+    ; Index 3 - %10 == 2 = Dark Grey
+    ; Note- looking at the VRAM viewer in BGB, the indexes i have here may be backwards, but i'm not sure what order it's really using
+    ld [bc], a ; Load the value referenced by BC with A
+    ; At start this is loading value at $DA3E with value $36
+    inc bc ; Increment BC to $DA3F
+    ld a, [hl] ; Load A with value referenced by HL
+    ; At start HL is currently $1E7A, value referenced there is $9C
+    ldh [rOBP1], a ; Load up the 1st Object Palette Data with the value from A (at start, $9C)
+    ld [bc], a ; Set the value referenced by BC to the value from A (at start $9C)
+    ret ; Return from where you were called.
+
+    ; So what is Call_000_1e38 / Jump_000_1e38 really doing? 
+    ; It appears that it uses a seed value from A (in the startup case, this is $03)
+    ; Performs the function A + (A*2) to get a value that represents an offset from memory address $1E6F
+    ; From there a value is read from this offset of $1E6F and applied to the rBGP background palette data register first
+    ; At the same time we are saving off this same value in to another location in work RAM ($DA3D).
+    ; This process is repeated for both Object Palette Data registers, each with a single incremented offset from 
+    ; the Background Palette's ($1E6F + (A + A*2)) where A is the original seeded value.
+    ; Looking at the memory address neighborhood of $1E6F during this time, there's a lot of $9Cs and such. These are most certainly
+    ; the non-CGB palette data for the game (at least for this initialization part).
+    ; In the program there is not another function to appears until $1EA8 (Call_000_1ea8), but this could also potentially be garbage,
+    ; Will need to run a breakpoint on that function to see if it gets called- not linkely since it's only a RET instruction.
+    ; In any case it appears there is non logical data between jr_000_1e6a (starting at $1E6C) and Call_000_1ea9 (at $1EA9) and it may be 
+    ; that this data block is palette data.
+
+    ; The function Call_000_1e38 does appears in a few other places:
+    ; CheckIfResetCombinationPressed will send this code a reg A value of $03 (like we see during startup) as a part of its Reset function
+    ; Call_000_0e4d sends a value on reg A of $01 right before it does a wIsOnSGB check.
+    ; jr_000_0eb1 uses reg A value of $0F, which translates to an offset of $2D from $1E6F, meaning that values from $1E9C to $1E9F are confirmed palette data
+    ; Call_000_269e uses reg A value of $07 while also doing a LoadGraphicsDataHeader, and earlier a SendSGBPacket7 (and fills memory from $9800 to $A000 with the value $47)
+    ; There are many others, but just one more highlight:
+    ; Call_289c uses an offset of $00 (via 'xor a') on Call_000_1e38.
+    ; 
+    ; It will be seen if rBGP and the object palette data gets toggled elsewhere, but at least for this portion of code it seems that 
+    ; Call_000_1e38 could be seen as a function that uses a table index as an input and sets palette values accordingly.
+    ; Since A is always used to calculate the offset via (A + (2*A)) we should have the following offsets:
+    ; Offset input: Result
+    ; $00: $00
+    ; $01: $03
+    ; $02: $06
+    ; $03: $09
+    ; $04: $12
+    ; ... and so on.
+    ; Given that these come in triples, it follows that each of the elements in the triple is rBGP, rOBP1, rOBP2;
+    ; So we could consider the following:
+    ; At address $1E6F (offset input $00) we have palette set 0: $9C, $1E, $9C
+    ; At $1E72 (offset input $01), set 1: $63, $E1, $63
+    ; At $1E75 (offset input $02), set 2: $FF, $FF, $FF - all black, interesting
+    ; At $1E78 (offset input $03, start value), set 3: $9C, $36, $9C
 
 
     ld hl, $c819
@@ -4922,7 +5033,7 @@ jr_000_1e6a:
     ld [$c81a], a
     ret
 
-
+; THIS COULD ACTUALLY BE PALETTE DATA
     sbc h
     ld e, $9c
     sbc h
