@@ -129,10 +129,10 @@ JoypadTransitionInterrupt::
 
 
 SECTION "Header", ROM0[$0100]
-
+; start of actual code execution
 Boot::
-    nop
-    jp Start
+    nop ; no op to begin
+    jp Start ; jump to Start- this could be altered to jump to a different function, such as a GBC compatibility check.
 
 ; The Game Boy cartridge header data is patched over by rgbfix.
 ; This makes sure it doesn't get used for anything else.

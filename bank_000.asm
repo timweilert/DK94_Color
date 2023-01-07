@@ -3,13 +3,18 @@
 ; https://github.com/mattcurrie/mgbdis
 
 SECTION "ROM Bank 0 Main", ROM0[$150]
-
+; jump here from home.asm's Boot section.
 Start:
-    di
-    ld sp, $fffe
-    ld a, $01
-    rst BankswitchRST
-    call Init
+    di ;disable interrupts
+    ld sp, $fffe ; set the stack pointer to $FFFE - basically at the top of memory
+    ld a, $01 ; set A to $01
+    rst BankswitchRST ; Bank switch to bank $01
+    call Init ; call the Init function
+    ; At this point we have zeroed out a bunch of working RAM, maintained values in wIsOnSGB and wHUDTextType, 
+    ; Initialized the sound, set several addresses ($DA5F and others) to value $61DA, set the hFunctionTableIndex to $01 (hasn't been set yet),
+    ; Set number of wLives to $04, and potentially set the bonus game address $C858 to value $FF.
+    ; We maintain the wIsOnSGB and wHUDTextType because the Init code can be called from a soft reset via CheckIfResetCombinationPressed
+    ; May consider adding a distinct carve out for hGBC as well here.
     call GetOAMDmaCodeAddress
     ld a, $03
     call Call_000_1e38
@@ -128,10 +133,10 @@ Reset:    ;reset the game
 
 
 Init:
-    ld a, [wIsOnSGB]
-    push af
-    ld a, [wHUDTextType]
-    push af
+    ld a, [wIsOnSGB] ; load A with the value from wIsOnSGB
+    push af ; Push AF to the stack, this saves the wIsOnSGB value for later on
+    ld a, [wHUDTextType] ; load A with value for wHUDTextType
+    push af ; Again push this value to the stack.
     ;Clear RAM from C000 to DEF7
     ld hl, $c000
     ld bc, $1ef7 ;number of bytes to fill starting from 0xc000
@@ -143,32 +148,39 @@ Init:
     xor a
     call FillMemory16
     ;Clear HRAM from FF8A to FFA9
-    ld hl, $ff8a
-    ld c, $20
-    xor a
+    ld hl, $ff8a ; load HL with the value $FF8A
+    ld c, $20 ; Load C with value $20
+    xor a ; Zero out A
     call FillMemory
-    pop af
-    ld [wHUDTextType], a
-    pop af
-    and $cd ;and isOnSGB with cd, and store as the new value
-    ld [wIsOnSGB], a
+    pop af ; Pop the wHUDTextType value off the stack
+    ld [wHUDTextType], a ; load the popped value in to the variable
+    pop af ; pop wIsOnSGB off the stack.
+    and $cd ;and wIsOnSGB with cd, and store as the new value
+    ld [wIsOnSGB], a ; put that new value in the wIsOnSGB variable.
+
+    ;To this point we've taken the initial values for a couple spots in work ram, saved them off to the stack,
+    ;cleared out most of the work ram, then reloaded those values back.
+
     ;Switch to bank 3
     ld a, $3
     rst BankswitchRST
-    call InitSound
-    call Call_000_1cfa
-    ld a, $e7
-    ld [wLCDCRegisterTemp], a
-    ld a, $01
-    ld [$c851], a
+    call InitSound ; do the InitSound function- this sets a bunch of sound registers in hardware registers and work ram to various values.
+    call Call_000_1cfa ; This sets several WRAM values to the value $61DA (at addresses $DA5F, $DA71, and $DA73)
+    ; These addresses get accessed during jr_000_16d3, jr_000_16e2 during initial game startup.
+    ld a, $e7 ; Load A with value $E7
+    ld [wLCDCRegisterTemp], a ; Set wLCDCRegisterTemp to value $E7, presumably sets the LCD Controller in to an init mode
+    ld a, $01 ; Set A to $01
+    ld [$c851], a ; Set the value at mem location $C851 to $01. This value is read out in jr_00c_4aff and used to set a value for 
+    ; hFunctionTableIndex which as the name suggests is the index for the SceneFunctionTable. Could be that we are setting it to $1 here 
+    ; to start the Scenes off at the beginning
     ld a, $04 ;set lives to 4
     ld [wLives], a
-    ld hl, $c859
-    xor a
-    ld [hl-], a
-    dec a
-    ld [hl], a
-    ret
+    ld hl, $c859 ; Set HL to $C859
+    xor a ; Zero out A
+    ld [hl-], a ; Set $C859 to $0 and decrement
+    dec a ; Decrement A and underflow to $FF
+    ld [hl], a ; Set $C858 to $FF. $C858 may be the Bonus Game indicator
+    ret ; Return from where called.
 
 
 VBlankInterruptFunction:
@@ -4580,26 +4592,25 @@ Call_000_1ce0:
 
 
 Call_000_1cf0:
-    ld hl, $da5f
-    ld de, $da61
-    ld a, e
-    ld [hl+], a
-    ld [hl], d
-    ret
+    ; Gets called right below here. Both of these together result in $DA61 getting loaded in a few spots in work ram.
+    ld hl, $da5f ; Load HL with value $DA5F
+    ld de, $da61 ; Load DE with value $DA61
+    ld a, e ; Load A with value $61
+    ld [hl+], a ; Set the address $DA5F to value $61
+    ld [hl], d ; Set the address $DA60 to value $DA
+    ret ; Return from where called.
 
 
 Call_000_1cfa:
-    call Call_000_1cf0
-    ld hl, $da71
-    ld de, $da61
-    ld a, e
-    ld [hl+], a
-    ld a, d
-    ld [hl+], a
-    ld a, e
-    ld [hl+], a
-    ld [hl], d
-    ret
+    ; Not super sure what this one is doing other than loading up a repeating $61DA a couple times
+    call Call_000_1cf0 ; call the function defined right above here
+    ld hl, $da71 ; load HL with value $DA71
+    ld de, $da61 ; Load DE with value $DA61
+    ld a, e ; Load A with value $61
+    ld [hl+], a ; Set the address $DA71 to value $61 
+    ld a, d ; Load A with value $DA
+    ld [hl+], a ; Set the address $DA72 to value $DA
+    ret ; Return from where called.
 
 
 GotoNextScene:
