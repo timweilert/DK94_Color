@@ -2351,19 +2351,23 @@ jr_00c_4aec:
     ret
 
 Call_0c_4afa:
-    ld b, $09
-    ld hl, $4eb5
+    ld b, $09 ; Set B to $09
+    ld hl, $4eb5 ; Set HL to $4EB5
 jr_00c_4aff:
+    ld a, [hl+]  
+    ld e, a ; Load E with value at $4EB5
     ld a, [hl+]
-    ld e, a
-    ld a, [hl+]
-    ld d, a
-    ld c, $04
-    call CopyData
+    ld d, a ; Load D with value at $4EB6, HL is now $4EB7
+    ld c, $04 ; Set C to $04
+    call CopyData ; As the note for CopyData suggests, we are going to copy data starting at the address $4EB7
+    ; The destination address is the one referenced by the values stored at $4EB6,$4EB5,
+    ; and we will be copying C ($04) bytes. 
     dec b
-    jr nz, jr_00c_4aff
-    ld a, [$c851]
-    ldh [hFunctionTableIndex], a
+    jr nz, jr_00c_4aff ; loop until complete - because we have B set to $9, we might assume that we're going to copy
+    ; Values in 4 byte chunks for a total of 36 bytes
+    ; On the subsequent loops we will use a copy start address that is 2 bytes higher than the last (2nd iteration start address will be $4EB9)
+    ld a, [$c851] ; during Init this value is set to $1
+    ldh [hFunctionTableIndex], a ; Set hFunctionTableIndex to $1
     ret
 
 Call_0c_4b11:
@@ -4206,6 +4210,7 @@ jr_00c_584d:
     add hl, de
     ld a, [hl]
     ldh [rBGP], a
+    ; Probably need to put in an update GBC palettes call here
     ldh [rOBP0], a
     ret
 

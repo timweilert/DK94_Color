@@ -3,12 +3,31 @@
 ; we need the program to think it is a SGB to get palette data, but not do many of the other
 ; SGB functions such as borders and comms with SGB specific hardware.
 CheckIfOnSGB:
+    ; In shinpokered this bit is a bit like LoadSGB, with the top part being 'call CheckSGB'
+    ; The way the code works over there is that we first do the SGB checks (all of which would jump us to .onSGB),
+    ; then we do the following with the hGBC flag:
+    ; ld a, [hGBC]
+    ; and a
+    ; jr z, .onDMG
+    ; ;if on gbc, set SGB flag bust skip all the SGB VRAM stuff
+    ; ld a, $1
+    ; ld [wOnSGB], a
+    ; .onDMG
+    ; ret
+    ;
+    ; In DK'94's case we would probably want to maintain consistency and set both wIsOnSGB and wHUDTextType to their respective values 
+    ; using methods seen in the original source code here, setting the 7th bit in wIsOnSGB and wHUDTextType to $9C, then returning.
+    ; 
+    ; One more big picture thing from shinpokered:
+    ; Before LoadSGB gets called in that software the ei (enable interrupt) instruction is given.
+    ; 
+    ; DK94 code begins here:
     ldh a, [rIE] ; Load A with the value from Hi RAM for the interrupt enable register rIE
     set 0, a ; Set bit 0 in Register A to 1. 
-    ei ;enable interrupts
+    ei ;enable interrupts - we do want to include this.
+    ; From this line to note below is basically the SGB check, leave in place as is.
     ld a, $0a ; Set A to the value $0A
     call SendSGBPacketFromTableSkipSGBCheck ; Sends a packet, even if we aren't on a SGB. 
-    ; PICK UP HERE!
     ldh a, [rJOYP]
     cp $ff
     jr nz, .onSGB
@@ -16,22 +35,75 @@ CheckIfOnSGB:
     ldh a, [rJOYP]
     cp $ff
     jr nz, .onSGB
-    ld a, $09
+    ; From the note above to this line is the Check SGB code, leave it as-is. 
+    ; Add the hGBC check stuff around here, perhaps doing a ret before we hit the DMG code
+    ; Something like: 
+    ; ld a, [hGBC]
+    ; and a
+    ; jr z, .onDMG
+    ; ld hl, wIsOnSGB
+    ; set 7, [hl]
+    ; ld a, $9c
+    ; ld [wHUDTextType], a
+    ; ret
+    ; .onDMG
+    ; I think this (starting with 'ld a, $09') is where .onDMG should go.
+    ld a, $09 ; If you've made it to this part you're not on a SGB.
     call SendSGBPacketFromTableSkipSGBCheck
     ld hl, wIsOnSGB
     res 7, [hl] ;set the bit 7 of wIsOnSGB to 0 if not running on sgb, otherwise set it to 1
     ld a, $cc ;if the game is not running on sgb, set da40(HUD text type) to cc, otherwise set it to 9c
     ld [wHUDTextType], a
-    di ;disable interrupts
+    di ;disable interrupts 
     ret ;return
-.onSGB
+.onSGB ; presumably skipping most of this if we're on GBC, but still peeking in a bit to get an idea of what's going on.
     ld hl, wIsOnSGB
-    set 7, [hl]
-    ld a, $9c 
+    set 7, [hl] ; Here's where we set the wIsOnSGB flag bit. this part should be included in a GBC check.
+    ld a, $9c ; Per the note from earlier, this is also one of the things we set to enable drop shadow on the HUD text.
+    ; I think for a GBC colorization we should leave this in.
     ld [wHUDTextType], a
-    ld a, $2d
+    ld a, $2d ; Send packet $2D from the SGBPacketTable.
+    ; In the SGBPacketTable, $2D is:
+    ;
+    ; Packet_41:
+    ; sgb_pal01
+    ; REPT 7
+    ; RGB 0,0,0
+    ; ENDR
+    ; db $00
+    ;
+    ; Packet 41 is as follows:
+    ; One instance of sgb_pal01, which kinda doesn't make sense since it's just doing a leftwise bit shift but the value it's working on
+    ; PAL01, is just $00 to begin with. So the restul is that we bit shift $00 (still gives $00), then add 1, so we end up with $01.
+    ; 7 instances of RGB color data all defined with zeroed values. Each takes a single byte
+    ; A single byte, statically defined as $00. This is because Color 0 in the SGB palette space is always transparent. 
+    ; So on the whole it's 8 bytes, all set to 0. 
+    ; See https://gbdev.io/pandocs/SGB_Color_Palettes.html?highlight=rgb#color-format 
+    ; What may make most sense is to manually translate all of the SGB palettes to GBC compatible palettes and just store those in a 
+    ; separate spot in memory (probably make a new .asm file with all the GBC specific stuff in it)
+
+    ; Where sgb_pal01 is as follows:
+    ; sgb_pal01: MACRO
+	; db (PAL01 << 3) + 1
+    ; ENDM
+    ; And PAL01 is as follows: 
+    ; PAL01    EQU $00 ; Set SGB Palette 0,1 Data (from sgb_constants.asm)
     call SendSGBPacketFromTableDelay
     ld a, $1f
+    ; In the SGBPacketTable, $1F is: 
+    ; Packet_28:
+    ; sgb_sound $80, $80, 0, 3, 0, 2, 0
+    ; Where sgb_sound is as follows:
+    ; sgb_sound: MACRO
+    ; 	db (SOUND << 3) + 1
+    ; 	db \1
+    ;   db \2
+    ;   db \3 + (\4 << 2) + (\5 << 4) + (\6 << 6)
+    ;   db \7
+    ;   ds 11
+    ; ENDM
+    ; And SOUND is...
+    ; SOUND    EQU $08 ; Sound On/Off (from sgb_constants.asm)
     call SendSGBPacketFromTableDelay
     di
     call InitRegistersSGBPacket
@@ -299,6 +371,9 @@ SendSGBPacket:
     jr .loop
 
 CheckInputSGB:
+    ; Pretty sure this is one of those cases of the SGB abusing the heck out of the
+    ; rJOYP registers, not going to go in to detail here, but just know that it's not something
+    ; a GBC would do.
     ld a, $20
     ldh [rJOYP], a
     ldh a, [rJOYP]

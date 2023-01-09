@@ -21,45 +21,54 @@ Start:
     ; WRAM addresses $C000 to $C09F to the OAM range.
     ld a, $03 ; Load A with value $03
     call Call_000_1e38 ; Sets the rBGP, and Object palette data registers to values stored in $1E6F, offset by 3 palettes worth of data (see notes)
-    call CheckIfOnSGB
-    call Call_000_018e
+    call CheckIfOnSGB ; Checks if on SGB, sets wIsOnSGB accordingly and (if actually on a SGB) does a bunch of VRAM stuff. 
+    call Call_000_018e ; put the screen in VBLANK and set up CPU timing.
     ld a, $07
-    ld [wIERegisterTemp], a
-    ldh [rIE], a
-    ei
+    ld [wIERegisterTemp], a ; set wIERegisterTemp (addr $CA03) to $07 
+    ldh [rIE], a ; Also set the interrupt enable to $07, binary $111
+    ; This sets VBlank enable, LCD Stat enable, and Timer enable.
+    ei ; re-enable interrupts. 
+
+    ; At this point we now have our object and palette data loaded up, we've checked if we're on a SGB, and we've set up the VBlank and CPU timer
+    ; We are now ready to start executing the main code. 
 
 MainLoop:
-    call PollInput
-    call CheckIfResetCombinationPressed
-    call GotoSceneLoop
+    call PollInput ; As the title suggest, poll the input for the joypad, pretty standard.
+    call CheckIfResetCombinationPressed ; Since the hJoypad register now has the user input, check to see if they're doing the reset combo
+    call GotoSceneLoop ; Set A to the value stored at hCurrentScene
+    ; On startup hCurrentScene value begins at $00, eventually goes up to $02 to start running the IntroTitleSceneLoop
+    ; At that point the hFunctionTableIndex is $01 and we've switched to bank 1.
     ld hl, $c72f
-    res 0, [hl]
-    ld hl, wVBlankInterruptFinished
-    halt
+    res 0, [hl] ; Set bit 0 in the byte pointed to by HL (which is at address $C72F) to 0
+    ld hl, wVBlankInterruptFinished ; set HL to the address for wVBlankInterruptFinished
+    halt ; Hang out in low power mode until the next interrupt occurs.
     ;Keep looping until bit 0 of wVBlankInterruptFinished is 1
 .loop:
-    bit 0, [hl]
-    jr z, .loop
+    bit 0, [hl] ; Test bit 0 of the value at HL (again, HL is pointing to $C0A0, wVBlankInterruptFinished). Set zero flag if the bit is not set
+    jr z, .loop ; If the bit test fails (bit not set) we get a zero flag, loop again.
     res 0, [hl] ;Reset bit 0 of wVBlankInterruptFinished
-    ld hl, $ff95
-    inc [hl]
-    jr MainLoop
+    ld hl, $ff95 ; Set HL to value $FF95
+    inc [hl] ; Increment the value at $FF95
+    jr MainLoop ; Jump back up to the top of the main loop. 
 
 
 
 Call_000_018e:
     ld a, $40
-    ldh [rSTAT], a
+    ldh [rSTAT], a ; set rSTAT (the LCD status) to $40, or binary %1000000 which is VBlank
+    ; see https://gbdev.io/pandocs/STAT.html?highlight=ff41#ff41--stat-lcd-status
     xor a
-    ld [$defb], a
-    ldh [rTIMA], a
+    ld [$defb], a ; set $DEFB to 0
+    ldh [rTIMA], a ; set the timer counter to 0
     ld a, $bb
-    ldh [rTMA], a
+    ldh [rTMA], a ; set the timer modulo to $BB, when the timer above overflows it sets to this value
     xor a
-    ldh [rTAC], a
+    ldh [rTAC], a ; set Timer Control to 0
+    ; see https://gbdev.io/pandocs/Timer_and_Divider_Registers.html?highlight=ff05#ff07--tac-timer-control
+    ; This sets the timer control to CPU Clock / 1024, effectively 4096 Hz clocking
     ld a, $04
-    ldh [rTAC], a
-    ret
+    ldh [rTAC], a ; Set the timer control to $04, binary %100, enables the timer.
+    ret ; return from where called. 
 
 ;Jump to function in below table based on the current scene
 GotoSceneLoop:
@@ -68,38 +77,38 @@ GotoSceneLoop:
 
 ;function/other data pointer table used by the above function
 SceneFunctionTable::
-dw GotoNextScene
-dw GotoNextScene
-dw IntroTitleSceneLoop ;address used for intro/title scene
-dw FileSelectJump
-dw Call_288e
-dw GotoNextScene
-dw GotoNextScene
-dw GotoNextScene
-dw Call_3638
-dw GotoNextScene
-dw GotoNextScene
-dw GotoNextScene
-dw $c1fc
-dw GotoNextScene
-dw GotoNextScene
-dw GotoNextScene
-dw $06ba
-dw $34c0
-dw $068f
-dw GotoNextScene
-dw $2655
-dw $3563
-dw $3644
-dw GotoNextScene
-dw $4000
-dw GotoNextScene
-dw $365a
-dw GotoNextScene
-dw Call_3452
-dw GotoNextScene
-dw $28f0
-dw GotoNextScene
+dw GotoNextScene ; $00
+dw GotoNextScene ; $01
+dw IntroTitleSceneLoop ;address used for intro/title scene ; $02
+dw FileSelectJump ; $03
+dw Call_288e ; $04
+dw GotoNextScene ; $05
+dw GotoNextScene ; $06
+dw GotoNextScene ; $07
+dw Call_3638 ; $08
+dw GotoNextScene ; $09
+dw GotoNextScene ; $0A
+dw GotoNextScene ; $0B
+dw $c1fc ; $0C
+dw GotoNextScene ; $0D
+dw GotoNextScene ; $0E
+dw GotoNextScene ; $0F
+dw $06ba ; $10
+dw $34c0 ; $11
+dw $068f ; $12
+dw GotoNextScene ; $13
+dw $2655 ; $14
+dw $3563 ; $15
+dw $3644 ; $16
+dw GotoNextScene ; $17
+dw $4000 ; $18
+dw GotoNextScene ; $19
+dw $365a ; $1A
+dw GotoNextScene ; $1B
+dw Call_3452 ; $1C
+dw GotoNextScene ; $1D
+dw $28f0 ; $1E
+dw GotoNextScene ; $1F
 
 ;this function is used for resetting the game if the below button combination is pressed
 CheckIfResetCombinationPressed:
@@ -724,6 +733,7 @@ Call_05b2:
 Call_05bb:
     ld a, $0f
     ldh [rBGP], a
+    ; Probably need to put in an update GBC palettes call here
     ld a, $07
     ldh [rLYC], a
     jp Jump_000_0376
@@ -731,6 +741,7 @@ Call_05bb:
 Call_05c6:
     ld a, $9c
     ldh [rBGP], a
+    ; Probably need to put in an update GBC palettes call here
     xor a
     ldh [rLYC], a
     jp Jump_000_038f
@@ -836,10 +847,12 @@ Call_000_0678:
     ld hl, $ce1d
     jr jr_000_0680
 Call_000_067d:
-    ld hl, $da3d
+    ld hl, $da3d ; $DA3D is the WRAM location where palette data may be stored in 3 bytes, background, obj 0, obj 1
 jr_000_0680:
     ld a, [hl+]
     ldh [rBGP], a
+    ; In shinpokered, an 'UpdateGBCPal' related command shows up after every load in to the rBGP, rOBP0, and rOBP1 registers.
+    ; For GBC'ifying DK94 should do the same here. Just need an UpdateGBCPal set of functions.
     ld a, [hl+]
     ldh [rOBP0], a
     ld a, [hl]
@@ -1961,24 +1974,46 @@ Call_000_0dbf:
 
 
 Call_000_0dc3:
-    ldh a, [hCurrentBank]
-    push af
-    ld a, $0c
-    rst BankswitchRST
-    ld hl, $c85c
-    ld a, [hl+]
-    ld e, a
-    ld d, [hl]
-    ld hl, ArcadeLevelPalette
-    add hl, de
-    add hl, de
-    ld a, [hl+]
-    ld c, a
-    ld [$c85b], a
-    ld b, [hl]
-    pop af
-    rst BankswitchRST
-    ret
+    ; This one seems interesting since it uses something called ArcadeLevelPalette
+    ldh a, [hCurrentBank] ; Load A with the current bank number
+    push af ; Push AF to the stack for safe keeping
+    ld a, $0c ; Load A with value $0C
+    rst BankswitchRST ; Switch to bank $0C
+    ld hl, $c85c ; Set HL to value $C85C
+    ; According to memory map of unmodified ROM, $C85C is $0031 + wIsOnSGB
+    ld a, [hl+] ; Load the value of the byte at $C85C in to A, increment HL- is now $C85D
+    ld e, a ; Set E to the value of the byte at $C85C
+    ld d, [hl] ; Set D to the value of the byte at $C85D
+    ld hl, ArcadeLevelPalette ; Set HL to the base address for ArcadeLevelPalette
+    add hl, de ; Add HL (ArcadeLevelPalette base address) with the values in DE (values of bytes at $C85D,$C85C)
+    add hl, de ; Add HL (ArcadeLevelPalette base address + values of bytes at $C85D,$C85C) with values in DE (values of bytes at $C85D,$C85C)
+    ld a, [hl+] ; Load A with the value from HL (see line directly above for that value), increment HL
+    ld c, a ; Load C with the value in A
+    ld [$c85b], a ; Load A with the value in $C85B (one byte below our area of interest from earlier)
+    ld b, [hl] ; Load B with the value from the byte at HL
+    pop af ; Pop AF back off the stack
+    rst BankswitchRST ; Go back to the value we stored in hCurrentBank at the beginning of the call. 
+    ret ; return from where called
+
+    ; What is going on in Call_000_0dc3 ?
+    ; Start off by switching to Bank C, which houses the ArcadeLevelPalette
+    ; Set the following registers to the following values:
+    ; AF - just used as intermediary, eventually used to return to the bank from which this code was called
+    ; DE - Values of the bytes stored at $C85D (D) $C85C (E)
+    ; HL - Starts at $C85C to set DE to the values referenced by $C85D,$C85C
+    ;    - Gets set to the ArcadeLevelPalette base address
+    ;    - Gets set to the ArcadeLevelPalette base address plus 2X the value of DE (likely that we are talking about words here, thus the 2X)
+    ; BC - The ArcadeLevelPalette data. It's in the form such that C is the value referenced by HL (as of the last one) 
+    ;      and B is the value in (HL + 1). 
+    ;    - Effectively:
+    ;      B == Value from (ArcadeLevelPalette base address) + (2x values referenced by $C85D,$C85C) + 1
+    ;      C == Value from (ArcadeLevelPalette base address) + (2x values referenced by $C85D,$C85C)
+    ;    - Note that $C85B is also loaded with the value that C has here. 
+    ;
+    ; So looking at memory we have the following:
+    ; $C85B - value from ArcadeLevelPalette that is the result of Call_000_0dc3
+    ; $C85C - low byte in a pair of bytes that represent the offset for ArcadeLevelPalette data
+    ; $C85D - high byte in a pair of bytes that represent the offset for ArcadeLevelPalette data
 
 
     ld hl, wLives
@@ -2371,18 +2406,23 @@ DisableLCD1:
 
 ;0x100b
 PollInput:
-    ld a, $20
-    ldh [rJOYP], a
-    ldh a, [rJOYP]
-    ldh a, [rJOYP]
-    cpl
-    and $0f
+    ld a, $20 ; Set A to constant value $20
+    ldh [rJOYP], a ; Load the rJOYP register with value $20
+    ldh a, [rJOYP] ; Load A with the value from rJOYP (still value $20)
+    ldh a, [rJOYP] ; Load A with value from rJOYP again (still $20?)
+    cpl ; Complement Accumulator - flips all the bits in the A register and sets the N and H flags
+    ; $20 in binary is %00100000
+    ; So cpl $20 would be %11011111 or $DF
+    and $0f ; And the value with $0F
+    ; This should give us just $0F
     swap a
-    ld b, a
-    ld a, $30
-    ldh [rJOYP], a
-    ld a, $10
-    ldh [rJOYP], a
+    ; swap the upper and lower 4 bits, so we now have 
+    ; %11111101 or $FD
+    ld b, a ; Set B to the value in A ($FD)
+    ld a, $30 ; Set A to $30
+    ldh [rJOYP], a ; Set rJOYP to $30
+    ld a, $10 ; Set A to $10
+    ldh [rJOYP], a ; Set rJOYP to $10
     ldh a, [rJOYP]
     ldh a, [rJOYP]
     ldh a, [rJOYP]
@@ -3565,12 +3605,12 @@ Call_000_162c:
 
 
 Call_000_1635:
-    ld hl, $c72f
+    ld hl, $c72f ; in MainLoop the 0th bit of the byte at this address is set to 0 directly after GotoSceneLoop
     ld a, $01
-    ld [hl-], a
-    ld a, [hl]
-    ld c, a
-    inc a
+    ld [hl-], a ; Set byte at $C72F to $01 (no longer have a 0 in the 0th bit position), decrement HL, now $C72E
+    ld a, [hl] ; Load the value from $C72E in to A
+    ld c, a ; Load the value from $C72E in to C
+    inc a ; Increment A
     and $1f
     ld [hl+], a
     ld a, c
@@ -4633,9 +4673,9 @@ Call_000_1cfa:
     ld hl, $da71 ; load HL with value $DA71
     ld de, $da61 ; Load DE with value $DA61
     ld a, e ; Load A with value $61
-    ld [hl+], a ; Set the address $DA71 to value $61 
+    ld [hl+], a ; Set the byte at address $DA71 to value $61 
     ld a, d ; Load A with value $DA
-    ld [hl+], a ; Set the address $DA72 to value $DA
+    ld [hl+], a ; Set the byte at address $DA72 to value $DA
     ret ; Return from where called.
 
 
@@ -4890,7 +4930,7 @@ jr_000_1df9:
     ret
 
 
-Call_000_1e27:
+Call_000_1e27: ;Sets the window postion to 0 (Y), and $07 (X)
     xor a
     ldh [rWY], a
     ld a, $07
@@ -8910,6 +8950,7 @@ IntroTitleSceneLoop:
     ;Jump to the function in the below table at the index based on hFunctionTableIndex
     ldh a, [hFunctionTableIndex]
     rst $08
+    ; notice no ret, so keep executing the FunctionTable_33fa code
 
 ;function table at offset 33fa
 FunctionTable_33fa::
@@ -8926,17 +8967,45 @@ FunctionTable_33fa::
     dw Call_01_4b2a
 
 InitIntroTitleScreen:
-    call DisableLCD
-    call Call_000_1e27
+    call DisableLCD ; Disable the LCD - does some scanline checking to make sure we're in a safe spot.
+    call Call_000_1e27 ; Set window position to 0 (Y) and $07 (X). A is $07 when complete
+    ; PICK UP HERE
     call Call_000_342c
     call UpdateLCDCIERegisters
     ld a, [wIsOnSGB]
     bit 7, a
-    ret z
+    ret z ; if Bit 7 in wIsOnSGB is 0 then return, otherwise continue. 
     ld a, $04
-    call SendSGBPacketFromTable
+    call SendSGBPacketFromTable ; Packet $04 from SGBPacketTable is as follows:
+    ; Packet_4:
+    ;     attr_blk 1
+    ;     attr_blk_data 1, 0, 0, 0, 0, 0, $13, $11
+    ;     ds 8
+    ; This is the ATTR_BLK data, otherwise known as the palette color blocking data - where each thing should go.
+    ; TODO: explain out all of this.
     ld a, $21
     jp SendSGBPacketFromTable
+    ; Packet at index $21 from SGBPacketTable is as follows:
+    ; Packet_30:
+    ;     sgb_pal_set $00, $2D, $2E, $2F, $40
+    ; where sgb_pal_set is as follows: 
+    ; sgb_pal_set: MACRO
+    ; 	db (PAL_SET << 3) + 1
+    ; 	dw \1, \2, \3, \4
+    ;     db \5
+    ; 	ds 6, 0
+    ; ENDM
+    ; And PAL_SET is a constant equal to $0A
+    ; This makes the data at Packet 30 as follows:
+    ; db $51
+    ; dw $00, $2D, $2E, $2F, $40
+    ; db $40
+    ; ds 6, 0
+    ; which gives the following: $51, $00, $00, $00, $2D, $00, $2E, $00, $2F, $40, $00, $00, $00, $00, $00, $00
+    ; Effectively 16 bytes describing palette data. 
+    ; I'm fairly certain $51 is the header and $40 with the 6 bytes of 0s behind it is the footer. 
+    ;
+    ; Following the jump to SendSGBPacketFromTable it'll return back here and begin executing Call_000_342c
 
 ;this leads to the intro tile graphics loading function (1d90)
 Call_000_342c:
