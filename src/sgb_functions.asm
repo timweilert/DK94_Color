@@ -49,7 +49,24 @@ CheckIfOnSGB:
     ; .onDMG
     ; I think this (starting with 'ld a, $09') is where .onDMG should go.
     ld a, $09 ; If you've made it to this part you're not on a SGB.
-    call SendSGBPacketFromTableSkipSGBCheck
+    call SendSGBPacketFromTableSkipSGBCheck ; Index $09 in the SGBPacketTable is MltReq1Packet
+    ; Which is defined as a dw (word)
+    ; MltReq1Packet:
+    ;  sgb_mlt_req 1
+    ; Where sgb_mlt_req 1 does the following:
+    ; sgb_mlt_req: MACRO
+    ; 	db (MLT_REQ << 3) + 1
+    ; 	db \1 - 1
+    ; 	ds 14
+    ; ENDM
+    ; So in this case we have the following bytes:
+    ; Note: MLT_REQ  EQU $11 ; Controller 2 Request
+    ; ($11 << 3) + 1 == $89
+    ; 1 - 1 == $00
+    ; ds 14 allocates 14 bytes, so we have in effect $89 $00 then 14 bytes (presumably all $00)?
+    ; In practice (via BGB debugger) it's actually $89 $01 then 14x $00. 
+    ; In any case- the MLT_REQ instruction is used to request multiplayer mode from a SGB and can be used to detect if we're on SGB
+    ; see https://gbdev.io/pandocs/SGB_Command_Multiplayer.html?highlight=MLT#sgb-command-11--mlt_req 
     ld hl, wIsOnSGB
     res 7, [hl] ;set the bit 7 of wIsOnSGB to 0 if not running on sgb, otherwise set it to 1
     ld a, $cc ;if the game is not running on sgb, set da40(HUD text type) to cc, otherwise set it to 9c

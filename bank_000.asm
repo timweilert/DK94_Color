@@ -3597,7 +3597,7 @@ jr_000_161d:
     ret
 
 
-Call_000_162c:
+Call_000_162c: ; Fill memory starting at address $C72E going for $C3 bytes with value $0
     ld hl, $c72e
     ld c, $c3
     xor a
@@ -8969,9 +8969,9 @@ FunctionTable_33fa::
 InitIntroTitleScreen:
     call DisableLCD ; Disable the LCD - does some scanline checking to make sure we're in a safe spot.
     call Call_000_1e27 ; Set window position to 0 (Y) and $07 (X). A is $07 when complete
-    ; PICK UP HERE
-    call Call_000_342c
-    call UpdateLCDCIERegisters
+    call Call_000_342c ; Fill memory starting at address $C72E going for $C3 bytes with value $0
+    call UpdateLCDCIERegisters ; Load values from working ram (wIERegisterTemp and wLCDCRegisterTemp) to their hardware
+    ; register equivalents (rIE and rLCDC)
     ld a, [wIsOnSGB]
     bit 7, a
     ret z ; if Bit 7 in wIsOnSGB is 0 then return, otherwise continue. 
@@ -8986,6 +8986,7 @@ InitIntroTitleScreen:
     ld a, $21
     jp SendSGBPacketFromTable
     ; Packet at index $21 from SGBPacketTable is as follows:
+    ; Note Packet_30 is at address $42C0
     ; Packet_30:
     ;     sgb_pal_set $00, $2D, $2E, $2F, $40
     ; where sgb_pal_set is as follows: 
@@ -9001,8 +9002,21 @@ InitIntroTitleScreen:
     ; dw $00, $2D, $2E, $2F, $40
     ; db $40
     ; ds 6, 0
-    ; which gives the following: $51, $00, $00, $00, $2D, $00, $2E, $00, $2F, $40, $00, $00, $00, $00, $00, $00
+    ; which gives the following: $51, $00, $00, $2D, $00, $2E, $00, $2F, $40, $00, $00, $00, $00, $00, $00
     ; Effectively 16 bytes describing palette data. 
+    ; https://gbdev.io/pandocs/SGB_Color_Palettes.html
+    ; I think this could be 0000 2D00 2E00 2F40
+    ; where                 PAL0 PAL1 PAL2 PAL3
+    ; and since colors are encoded as 16 bit RGB as follows:
+    ; Index: FEDC BA98 7654 3210
+    ; Color: 0BBB BBGG GGGR RRRR
+    ; So for PAL1 as an example:
+    ; $2D00 = %0010 1101 0000 0000
+    ;          0BBB BBGG GGGR RRRR
+    ; So R is %00000, $0
+    ;    G is %00010; $2
+    ;    B is %11010; $1A
+    ; TODO: DOUBLECHECK THIS
     ; I'm fairly certain $51 is the header and $40 with the 6 bytes of 0s behind it is the footer. 
     ;
     ; Following the jump to SendSGBPacketFromTable it'll return back here and begin executing Call_000_342c

@@ -4,6 +4,10 @@ PAL01    EQU $00 ; Set SGB Palette 0,1 Data
 PAL23    EQU $01 ; Set SGB Palette 2,3 Data
 PAL03    EQU $02 ; Set SGB Palette 0,3 Data
 PAL12    EQU $03 ; Set SGB Palette 1,2 Data
+
+; There are 4 banks of SGB palette data (SGB0 through SGB3)
+; These constants are used to select which palettes are being addressed
+
 ATTR_BLK EQU $04 ; "Block" Area Designation Mode
 ATTR_LIN EQU $05 ; "Line" Area Designation Mode
 ATTR_DIV EQU $06 ; "Divide" Area Designation Mode
