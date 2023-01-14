@@ -314,6 +314,10 @@ SendSGBPacketFromTable:
     ; At start (value at $4015), value at $4015 at this time is $41, HL is now $4115
     ld l, a ; Set L to value from A
     ; At start- this is $80, so HL now becomes $4180
+
+    ; Note: This at this point HL contains the memory address of the SGB data that it's going to then load up to the SGB via SendSGBPacket
+    ; This would be a good spot to insert a GBC palette function since most all of the SGB packets are color related. 
+
     call SendSGBPacket ; Sends a SGB packet, even if we aren't on a SGB. Most likely to initialize the values needed just in case we are.
     call Delay2 ; Delay for 4 frames
     pop af ; Pop AF back off the stack, remember this now contains the previous bank information ($0A)
@@ -334,6 +338,13 @@ SendSGBPacket:
     ; During startup HL is $4180 at when this is called.
     ; $4180 is the address for MltReq2Packet in an unmodified ROM
     ; Value at this address is $89 during startup, so A goes to $89
+
+    ; NOTE This is the line where values from the SGBPacketTable are being accessed
+    ; This is an essential part of sneaking off the data for GBC colorizing
+    ; In a sense, every time we get here we want to get that data and use it to set palettes.
+    ; While checking the start up code I put a breakpoint on access for address $42C0 (the first actual palette data to be loaded)
+    ; and found that this code basically increments HL in a loop through $42C0 up to $42D0, loading bytes in to 
+    ; the $FF00 registers which the SGB can then run with.
     and $07 ; Do an AND between the value from HL and A store the result in A
     ; At startup $89 AND $07 equals $01
     ld b, a ; Load B with new value from A

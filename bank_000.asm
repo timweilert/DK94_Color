@@ -8984,41 +8984,9 @@ InitIntroTitleScreen:
     ; This is the ATTR_BLK data, otherwise known as the palette color blocking data - where each thing should go.
     ; TODO: explain out all of this.
     ld a, $21
+    ; TODO: create a secondary function that can load GBC palette data depending on what packet we have here. 
     jp SendSGBPacketFromTable
-    ; Packet at index $21 from SGBPacketTable is as follows:
-    ; Note Packet_30 is at address $42C0
-    ; Packet_30:
-    ;     sgb_pal_set $00, $2D, $2E, $2F, $40
-    ; where sgb_pal_set is as follows: 
-    ; sgb_pal_set: MACRO
-    ; 	db (PAL_SET << 3) + 1
-    ; 	dw \1, \2, \3, \4
-    ;     db \5
-    ; 	ds 6, 0
-    ; ENDM
-    ; And PAL_SET is a constant equal to $0A
-    ; This makes the data at Packet 30 as follows:
-    ; db $51
-    ; dw $00, $2D, $2E, $2F, $40
-    ; db $40
-    ; ds 6, 0
-    ; which gives the following: $51, $00, $00, $2D, $00, $2E, $00, $2F, $40, $00, $00, $00, $00, $00, $00
-    ; Effectively 16 bytes describing palette data. 
-    ; https://gbdev.io/pandocs/SGB_Color_Palettes.html
-    ; I think this could be 0000 2D00 2E00 2F40
-    ; where                 PAL0 PAL1 PAL2 PAL3
-    ; and since colors are encoded as 16 bit RGB as follows:
-    ; Index: FEDC BA98 7654 3210
-    ; Color: 0BBB BBGG GGGR RRRR
-    ; So for PAL1 as an example:
-    ; $2D00 = %0010 1101 0000 0000
-    ;          0BBB BBGG GGGR RRRR
-    ; So R is %00000, $0
-    ;    G is %00010; $2
-    ;    B is %11010; $1A
-    ; TODO: DOUBLECHECK THIS
-    ; I'm fairly certain $51 is the header and $40 with the 6 bytes of 0s behind it is the footer. 
-    ;
+
     ; Following the jump to SendSGBPacketFromTable it'll return back here and begin executing Call_000_342c
 
 ;this leads to the intro tile graphics loading function (1d90)

@@ -15,6 +15,26 @@ ATTR_CHR EQU $07 ; "1CHR" Area Designation Mode
 SOUND    EQU $08 ; Sound On/Off
 SOU_TRN  EQU $09 ; Transfer Sound PRG/DATA
 PAL_SET  EQU $0a ; Set SGB Palette Indirect
+
+; Per https://gbdev.io/pandocs/SGB_Command_Palettes.html#sgb-command-0a--pal_set
+; 
+; Used to copy pre-defined palette data from SGB system color palettes to actual SNES palettes.
+;
+; Note: all palette numbers are little-endian.
+;
+;     Byte  Content
+;     0     Command*8+Length (fixed length=1)
+;     1-2   System Palette number for SGB Color Palette 0 (0-511)
+;     3-4   System Palette number for SGB Color Palette 1 (0-511)
+;     5-6   System Palette number for SGB Color Palette 2 (0-511)
+;     7-8   System Palette number for SGB Color Palette 3 (0-511)
+;     9     Attribute File
+;             Bit 0-5 - Attribute File Number (00h-2Ch) (Used only if Bit7=1)
+;             Bit 6   - Cancel Mask           (0=No change, 1=Yes)
+;             Bit 7   - Use Attribute File    (0=No, 1=Apply above ATF Number)
+;     A-F   Not used (zero)
+;    Before using this function, System Palette data should be initialized by PAL_TRN command, and (when used) Attribute File data should be initialized by ATTR_TRN.
+
 PAL_TRN  EQU $0b ; Set System Color Palette Data
 ATRC_EN  EQU $0c ; Enable/disable Attraction Mode
 TEST_EN  EQU $0d ; Speed Function

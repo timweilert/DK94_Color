@@ -125,112 +125,112 @@ SGBPacketTable: ; address $4000 in unmodified ROM, although packets don't show u
     dw Packet_3 ; $03 | $06 | $4110
     dw Packet_4 ; $04 | $08 | $4120
     dw PalPriPacket ; $05 | $0A | $4130
-    dw Packet_6 ; $06 | $0C | $4140 PICK UP HERE
-    dw MaskEnFreezePacket ; $07 | $0E
-    dw Packet_8 ; $08 | $10
-    dw MltReq1Packet ; $09 | $12
-    dw MltReq2Packet ; $0A | $14
-    dw MaskEnCancelPacket ; $0B | $16
-    dw Packet_12 ; $0C | $18
-    dw Packet_13 ; $0D | $1A
-    dw Packet_14 ; $0E | $1C
-    dw Packet_15 ; $0F | $1E
-    dw PalTrnPacket ; $10 | $20
-    dw AttrTrnPacket ; $11 | $22
-    dw Packet_18 ; $12 | $24
-    dw Packet_18 ; $13 | $26
-    dw Packet_18 ; $14 | $28
-    dw Packet_18 ; $15 | $2A
-    dw Packet_19 ; $16 | $2C
-    dw Packet_20 ; $17 | $2E
-    dw Packet_21 ; $18 | $30
-    dw Packet_22 ; $19 | $32
-    dw Packet_23 ; $1A | $34
-    dw Packet_24 ; $1B | $36
-    dw Packet_25 ; $1C | $38
-    dw Packet_26 ; $1D | $3A
-    dw Packet_27 ; $1E | $3C
-    dw Packet_28 ; $1F | $3E
-    dw SouTrnPacket ; $20 | $40
-    dw Packet_30 ; $21 | $42 
-    dw Packet_31 ; $22 | $44
-    dw Packet_32 ; $23 | $46
-    dw Packet_33 ; $24 | $48
-    dw Packet_34 ; $25 | $4A
-    dw Packet_32 ; $26 | $4C
-    dw Packet_35 ; $27 | $4D
-    dw Packet_36 ; $28 | $50
-    dw Packet_37 ; $29 | $52
-    dw Packet_38 ; $2A | $54
-    dw Packet_39 ; $2B | $56
-    dw Packet_40 ; $2C | $58
-    dw Packet_41 ; $2D | $5A
-    dw Packet_42 ; $2E | $5C
-    dw Packet_43 ; $2F | $5E
-    dw Packet_44 ; $30 | $60
-    dw Packet_45 ; $31 | $62
-    dw Packet_46 ; $32 | $64
-    dw Packet_47 ; $33 | $66
-    dw Packet_48 ; $34 | $68
-    dw Packet_50 ; $35 | $6A
-    dw Packet_49 ; $36 | $6C
-    dw Packet_51 ; $37 | $6E
-    dw Packet_52 ; $38 | $70
-    dw Packet_53 ; $39 | $72
-    dw Packet_54 ; $3A | $74
-    dw Packet_55 ; $3B | $76
-    dw Packet_56 ; $3C | $78
-    dw Packet_57 ; $3D | $7A
-    dw Packet_57 ; $3E | $7C
-    dw Packet_58 ; $3F | $7E
-    dw Packet_59 ; $40 | $80
-    dw Packet_60 ; $41 | $82
-    dw Packet_61 ; $42 | $84
-    dw Packet_62 ; $43 | $86
-    dw Packet_63 ; $44 | $88
-    dw Packet_64 ; $45 | $8A
-    dw Packet_65 ; $46 | $8C
-    dw Packet_66 ; $47 | $8E
-    dw Packet_67 ; $48 | $90
-    dw Packet_68 ; $49 | $92
-    dw Packet_69 ; $4A | $94
-    dw Packet_70 ; $4B | $96
-    dw Packet_71 ; $4C | $98
-    dw AttractionDisablePacket ; $4D | $9A
-    dw AttractionEnablePacket ; $4E | $9C
-    dw Packet_74 ; $4F | $9E
-    dw Packet_75 ; $50 | $A0
-    dw Packet_77 ; $51 | $A2
-    dw Packet_78 ; $52 | $A4
-    dw Packet_77 ; $53 | $A6
-    dw Packet_78 ; $54 | $A8
-    dw Packet_78 ; $55 | $AA
-    dw Packet_77 ; $56 | $AC
-    dw Packet_78 ; $57 | $AE
-    dw Packet_79 ; $58 | $B0
-    dw Packet_77 ; $59 | $B2
-    dw Packet_79 ; $5A | $B4
-    dw Packet_70 ; $5B | $B6
-    dw Packet_70 ; $5C | $B8
-    dw Packet_70 ; $5D | $BA
-    dw Packet_70 ; $5E | $BC
-    dw Packet_80 ; $5F | $BE
-    dw Packet_85 ; $60 | $C0
-    dw Packet_86 ; $61 | $C2
-    dw Packet_87 ; $62 | $C4
-    dw Packet_88 ; $63 | $C6
-    dw Packet_81 ; $64 | $C8
-    dw Packet_82 ; $65 | $CA
-    dw Packet_83 ; $66 | $CC
-    dw Packet_84 ; $67 | $CE
-    dw SGBPatch1 ; $68 | $D0
-    dw SGBPatch2 ; $69 | $D2
-    dw SGBPatch3 ; $6A | $D4
-    dw SGBPatch4 ; $6B | $D6
-    dw SGBPatch5 ; $6C | $D8
-    dw SGBPatch6 ; $6D | $DA
-    dw SGBPatch7 ; $6E | $DC
-    dw SGBPatch8 ; $6F | $DE
+    dw Packet_6 ; $06 | $0C | $4140
+    dw MaskEnFreezePacket ; $07 | $0E | $4150
+    dw Packet_8 ; $08 | $10 | $4160
+    dw MltReq1Packet ; $09 | $12 | $4170
+    dw MltReq2Packet ; $0A | $14 | $4180
+    dw MaskEnCancelPacket ; $0B | $16 | $4190
+    dw Packet_12 ; $0C | $18 | $41A0
+    dw Packet_13 ; $0D | $1A | $41B0
+    dw Packet_14 ; $0E | $1C | $41C0
+    dw Packet_15 ; $0F | $1E | $41D0
+    dw PalTrnPacket ; $10 | $20 | $41E0
+    dw AttrTrnPacket ; $11 | $22 | $41F0
+    dw Packet_18 ; $12 | $24 | $4200
+    dw Packet_18 ; $13 | $26 | $4200
+    dw Packet_18 ; $14 | $28 | $4200
+    dw Packet_18 ; $15 | $2A | $4200
+    dw Packet_19 ; $16 | $2C | $4210
+    dw Packet_20 ; $17 | $2E | $4220
+    dw Packet_21 ; $18 | $30 | $4230
+    dw Packet_22 ; $19 | $32 | $4240
+    dw Packet_23 ; $1A | $34 | $4250
+    dw Packet_24 ; $1B | $36 | $4260
+    dw Packet_25 ; $1C | $38 | $4270
+    dw Packet_26 ; $1D | $3A | $4280
+    dw Packet_27 ; $1E | $3C | $4290
+    dw Packet_28 ; $1F | $3E | $42A0
+    dw SouTrnPacket ; $20 | $40 | $42B0
+    dw Packet_30 ; $21 | $42 | $42C0
+    dw Packet_31 ; $22 | $44 | $42D0
+    dw Packet_32 ; $23 | $46 | $42E0
+    dw Packet_33 ; $24 | $48 | $42F0
+    dw Packet_34 ; $25 | $4A | $4300
+    dw Packet_32 ; $26 | $4C | $42E0
+    dw Packet_35 ; $27 | $4D | $4310
+    dw Packet_36 ; $28 | $50 | $4320
+    dw Packet_37 ; $29 | $52 | $4330
+    dw Packet_38 ; $2A | $54 | $4340
+    dw Packet_39 ; $2B | $56 | $4350
+    dw Packet_40 ; $2C | $58 | $4360
+    dw Packet_41 ; $2D | $5A | $4370
+    dw Packet_42 ; $2E | $5C | $4380
+    dw Packet_43 ; $2F | $5E | $4390
+    dw Packet_44 ; $30 | $60 | $43A0
+    dw Packet_45 ; $31 | $62 | $43B0
+    dw Packet_46 ; $32 | $64 | $43C0
+    dw Packet_47 ; $33 | $66 | $43D0
+    dw Packet_48 ; $34 | $68 | $43E0
+    dw Packet_50 ; $35 | $6A | $4400
+    dw Packet_49 ; $36 | $6C | $43F0
+    dw Packet_51 ; $37 | $6E | $4410
+    dw Packet_52 ; $38 | $70 | $4420
+    dw Packet_53 ; $39 | $72 | $4430
+    dw Packet_54 ; $3A | $74 | $4440
+    dw Packet_55 ; $3B | $76 | $4450
+    dw Packet_56 ; $3C | $78 | $4460
+    dw Packet_57 ; $3D | $7A | $4470
+    dw Packet_57 ; $3E | $7C | $4470
+    dw Packet_58 ; $3F | $7E | $4480
+    dw Packet_59 ; $40 | $80 | $4490
+    dw Packet_60 ; $41 | $82 | $44A0
+    dw Packet_61 ; $42 | $84 | $44B0
+    dw Packet_62 ; $43 | $86 | $44C0
+    dw Packet_63 ; $44 | $88 | $44D0
+    dw Packet_64 ; $45 | $8A | $44E0
+    dw Packet_65 ; $46 | $8C | $44F0
+    dw Packet_66 ; $47 | $8E | $4500
+    dw Packet_67 ; $48 | $90 | $4510
+    dw Packet_68 ; $49 | $92 | $4520
+    dw Packet_69 ; $4A | $94 | $4530
+    dw Packet_70 ; $4B | $96 | $4540
+    dw Packet_71 ; $4C | $98 | $4550
+    dw AttractionDisablePacket ; $4D | $9A | $4560
+    dw AttractionEnablePacket ; $4E | $9C | $4570
+    dw Packet_74 ; $4F | $9E | $4580
+    dw Packet_75 ; $50 | $A0 | $4590
+    dw Packet_77 ; $51 | $A2 | $45B0 * skips a packet
+    dw Packet_78 ; $52 | $A4 | $45C0
+    dw Packet_77 ; $53 | $A6 | $45B0
+    dw Packet_78 ; $54 | $A8 | $45C0
+    dw Packet_78 ; $55 | $AA | $45C0
+    dw Packet_77 ; $56 | $AC | $45B0
+    dw Packet_78 ; $57 | $AE | $45C0
+    dw Packet_79 ; $58 | $B0 | $45D0
+    dw Packet_77 ; $59 | $B2 | $45B0
+    dw Packet_79 ; $5A | $B4 | $45D0
+    dw Packet_70 ; $5B | $B6 | $4540
+    dw Packet_70 ; $5C | $B8 | $4540
+    dw Packet_70 ; $5D | $BA | $4540
+    dw Packet_70 ; $5E | $BC | $4540
+    dw Packet_80 ; $5F | $BE | $45E0
+    dw Packet_85 ; $60 | $C0 | $4630
+    dw Packet_86 ; $61 | $C2 | $4640
+    dw Packet_87 ; $62 | $C4 | $4650
+    dw Packet_88 ; $63 | $C6 | $4660
+    dw Packet_81 ; $64 | $C8 | $45F0
+    dw Packet_82 ; $65 | $CA | $4600
+    dw Packet_83 ; $66 | $CC | $4610
+    dw Packet_84 ; $67 | $CE | $4620
+    dw SGBPatch1 ; $68 | $D0 | $4670
+    dw SGBPatch2 ; $69 | $D2 | $4680
+    dw SGBPatch3 ; $6A | $D4 | $4690
+    dw SGBPatch4 ; $6B | $D6 | $46A0
+    dw SGBPatch5 ; $6C | $D8 | $46B0
+    dw SGBPatch6 ; $6D | $DA | $46C0
+    dw SGBPatch7 ; $6E | $DC | $46D0
+    dw SGBPatch8 ; $6F | $DE | $46E0
 
 ;offset 40e0
 Packet_0:
@@ -297,6 +297,133 @@ SouTrnPacket:
     sgb_sou_trn
 Packet_30:
     sgb_pal_set $00, $2D, $2E, $2F, $40
+
+; Packet_30 is the first actual color data to be loaded during intialization. 
+; Note Packet_30 is at address $42C0
+;
+; Packet_30:
+;     sgb_pal_set $00, $2D, $2E, $2F, $40
+;
+; where sgb_pal_set is as follows: 
+;
+; sgb_pal_set: MACRO
+; 	db (PAL_SET << 3) + 1
+; 	dw \1, \2, \3, \4
+;     db \5
+; 	ds 6, 0
+; ENDM
+;
+; And PAL_SET is a constant equal to $0A, but see the notes in sgb_constants.asm about what each bit does. '
+; Reproduced here for ease of use. 
+; Used to copy pre-defined palette data from SGB system color palettes to actual SNES palettes.
+; Note: all palette numbers are little-endian.
+;  Byte  Content
+;  0     Command*8+Length (fixed length=1)
+;  1-2   System Palette number for SGB Color Palette 0 (0-511)
+;  3-4   System Palette number for SGB Color Palette 1 (0-511)
+;  5-6   System Palette number for SGB Color Palette 2 (0-511)
+;  7-8   System Palette number for SGB Color Palette 3 (0-511)
+;  9     Attribute File
+;          Bit 0-5 - Attribute File Number (00h-2Ch) (Used only if Bit7=1)
+;          Bit 6   - Cancel Mask           (0=No change, 1=Yes)
+;          Bit 7   - Use Attribute File    (0=No, 1=Apply above ATF Number)
+;  A-F   Not used (zero)
+; Before using this function, System Palette data should be initialized by PAL_TRN command, and (when used) Attribute File data should be initialized by ATTR_TRN.
+;
+; As an aside- in shinpokered the SGB pallette set macro is similar except it doesn't have \5 - it just set the last 7 bytes to 0
+; rather than a \5th input followed by 6 bytes of 0s. 
+;
+; This makes the data at Packet 30 as follows:
+;
+; db $51
+; dw $00, $2D, $2E, $2F, $40
+; db $40
+; ds 6, 0
+;
+; which gives the following: $51, $00, $00, $2D, $00, $2E, $00, $2F, $40, $00, $00, $00, $00, $00, $00
+;
+; Byte   Content   Description
+; 0      $51       Command*8 + a fixed length of 1. Reverseing this we get Command = ($51 - $1)/$8 == $0A, the PAL_SET command.
+; 1-2    $0000     SGB0 Palette number (0-511) - in this case palette 0
+; 3-4    $2D00     SGB1 Palette number (0-511) - remember this is little endian, so it's really $002D or 45
+; 5-6    $2E00     SGB2 Palette number (0-511) - dec 46
+; 7-8    $2F00     SGB3 Palette number (0-511) - dec 47
+; 9      $40       Attribute file, $40 = %0100 0000
+; So looking at the attribute file value here we can see that we are using attribute file number $00, no Cancel Mask, and we will use the Attr file (bit 7)
+;
+; According to pandoc (https://gbdev.io/pandocs/SGB_Command_Palettes.html#sgb-command-0b--pal_trn) the raw data for these 512 palettes lives
+; at memory addresses $3000 to $3FFF in SNES memory (not in GB memory). 
+; 
+; Trying to find a good resource for what these values are so I can create GB equivalents.
+; 
+; Effectively 16 bytes describing palette data. 
+; https://gbdev.io/pandocs/SGB_Color_Palettes.html
+; I think this could be 0000 2D00 2E00 2F40
+; where                 PAL0 PAL1 PAL2 PAL3
+; and since colors are encoded as 16 bit RGB as follows:
+; Index: FEDC BA98 7654 3210
+; Color: 0BBB BBGG GGGR RRRR
+; So for PAL1 as an example:
+; $2D00 = %0010 1101 0000 0000
+;          0BBB BBGG GGGR RRRR
+; So R is %00000, $0
+;    G is %00010; $2
+;    B is %11010; $1A
+;
+; I'm fairly certain $51 is the header and $40 with the 6 bytes of 0s behind it is the footer. 
+;
+; Confirmed via  https://gbdev.io/pandocs/SGB_Command_Palettes.html for SGB Command $00 - PAL01
+;  Byte  Content
+;  0     Command*8+Length (fixed length=01h)
+;  1-E   Color Data for 7 colors of 2 bytes (16 bits) each:
+;          Bit 0-4   - Red Intensity   (0-31)
+;          Bit 5-9   - Green Intensity (0-31)
+;          Bit 10-14 - Blue Intensity  (0-31)
+;          Bit 15    - Not used (zero)
+;  F     Not used (00h)
+;
+; 
+;
+; In practice the following values are visible with the debugger:
+; SBG0:
+; 6FBE - a kind of cream
+; 001A - cherry red
+; 1975 - brown
+; 0485 - black'ish
+;
+; SGB1:
+; 6FBE - cream
+; 42BF - tan'ish pink
+; 295F - bright pink
+; 2DCF - dark grey
+;
+; SGB2:
+; 6FBE - cream
+; 575F - orange'ish pink
+; 3dFF - middle pink
+; 4274 - grey
+;
+; SGB3:
+; 6FBE - cream
+; 6BFF - light pale yellow
+; 529F - pink
+; 5719 - light grey
+;
+; using $6FBE as an example
+;  BBBBB GGGGG RRRRR 
+; %11011 11101 11110
+; Gives the following values for each color:
+; B: $1B | 27
+; G: $1D | 29
+; R: $1E | 30
+; Doing a little math to convert to a 256 color palette (a la MS Paint)
+; (value/32)=(x/256)
+; Plugging these values in to MS Paint:
+; B: 216
+; G: 232
+; R: 240
+; Gives the cream color that we see in BGB. 
+
 Packet_31:
     sgb_pal_set $00, $01, $02, $03, $C2
 Packet_32:
